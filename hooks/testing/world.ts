@@ -2,7 +2,9 @@ import { mock } from 'claude-code/testing'
 import type { AgentInfo, AgentSpawnInput, AgentSpawnResult, FsStat, On, ProcessRunResult, ToolCallResult } from 'claude-code'
 import type { MockClock } from 'claude-code/testing'
 
-import type { Io } from '../runtime/io.ts'
+import { EMPTY_LOG } from '../domain/log.ts'
+import type { Io, StatePort } from '../runtime/io.ts'
+import { DEFAULT_UI } from '../runtime/ui-types.ts'
 import { NATIVE_STATE } from './harness-facts.ts'
 
 export const ROOT = '/repo'
@@ -52,6 +54,8 @@ export interface World {
   readonly alive: Set<string>
   readonly saved: SavedTopic[]
   readonly store: Map<string, unknown>
+  readonly memory: Map<string, unknown>
+  readonly debug: string[]
   readonly clock: MockClock
   readonly timers: IoTimer[]
   spawnDeny: string | undefined
@@ -101,6 +105,8 @@ export function installWorld(on: On): World {
     alive: new Set(),
     saved: [],
     store: new Map(),
+    memory: new Map(),
+    debug: [],
     clock: ioClock(on, timers),
     timers,
     spawnDeny: undefined,
@@ -223,7 +229,13 @@ export function worldIo(w: World): Io {
       spawn: async input => agentSpawn(w, input),
       list: async () => agentList(w),
     },
-    tool: { call: input => settle(engramAnswer(w, input.tool, input)) },
+    tool: {
+      call: input => settle(engramAnswer(w, input.tool, input)),
+      register: async spec => {
+        w.tools.push(spec.name)
+        return { tool: `mcp__zboard__${spec.name}` } as Awaited<ReturnType<Io['tool']['register']>>
+      },
+    },
     clock: {
       now: async () => w.clock.now(),
       after: (ms, fn) => {
@@ -231,6 +243,24 @@ export function worldIo(w: World): Io {
         w.timers.push(timer)
         return { cancel: () => { timer.isCancelled = true } }
       },
+    },
+    state: {
+      log: memoryPort(w, 'log', EMPTY_LOG),
+      ui: memoryPort(w, 'ui', DEFAULT_UI),
+      artifacts: memoryPort<Readonly<Record<string, string>>>(w, 'artifacts', {}),
+    },
+    ui: { invalidate: () => undefined, debug: text => { w.debug.push(text) } },
+  }
+}
+
+/** An in-memory `$.state` value kept on the world (`w.memory`), shared by every `worldIo(w)`. */
+function memoryPort<T>(w: World, key: string, initial: T): StatePort<T> {
+  return {
+    read: async () => (w.memory.has(key) ? (w.memory.get(key) as T) : initial),
+    update: async fn => {
+      const next = fn(w.memory.has(key) ? (w.memory.get(key) as T) : initial)
+      w.memory.set(key, next)
+      return next
     },
   }
 }

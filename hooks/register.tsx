@@ -1,34 +1,99 @@
-import type { Register } from 'claude-code'
+import type { EngineInterface, Register } from 'claude-code'
+import { atom, read, update } from 'claude-code'
 
 import { installAgentOffer, registerAgentTypes } from './adapters/agents.ts'
 import { installEngramAllow } from './adapters/engram.ts'
-import { PLUGIN } from './runtime/ctx.ts'
+import type { LogState } from './domain/log.ts'
+import { EMPTY_LOG } from './domain/log.ts'
+import type { Ctx } from './runtime/ctx.ts'
+import type { Io } from './runtime/io.ts'
+import { isolate } from './runtime/log-store.ts'
+import type { UiState } from './runtime/ui-types.ts'
+import { DEFAULT_UI } from './runtime/ui-types.ts'
+import { boardAgent, boardArtifact, boardStatus, boardTask, registerReadTools } from './tools/board-read.ts'
 
-const probe = { plugin: 'zboard', key: 'probe' } as const
+// Composition root. Claude Code's checker reads `$.state` only through atoms
+// declared as consts of the calling file and follows `$` only into functions of
+// this file, so the atoms, `ioOf` and every hook that needs state live here.
 
-export const register: Register = on => {
+const logAtom = atom({ plugin: 'zboard', key: 'log' } as const, EMPTY_LOG)
+const uiAtom = atom({ plugin: 'zboard', key: 'ui' } as const, DEFAULT_UI)
+const artifactsAtom = atom({ plugin: 'zboard', key: 'artifacts' } as const, {})
+
+/** The ports every other module receives instead of `$`. */
+function ioOf($: EngineInterface): Io {
+  return {
+    fs: {
+      read: path => $.fs.read(path),
+      write: (path, text) => $.fs.write(path, text),
+      exists: path => $.fs.exists(path),
+      stat: (path, options) => $.fs.stat(path, options),
+    },
+    process: { run: (argv, init) => $.process.run(argv, init) },
+    agent: {
+      register: spec => $.agent.register(spec),
+      spawn: input => $.agent.spawn(input),
+      list: () => $.agent.list(),
+    },
+    tool: {
+      call: input => $.tool.call(input),
+      register: spec => $.tool.register(spec),
+    },
+    clock: {
+      now: () => $.clock.now(),
+      after: (ms, fn) => $.clock.after(ms, fn),
+    },
+    state: {
+      // The contract declares these values structurally; the domain types narrow them here.
+      log: {
+        read: async () => (await read($, logAtom)) as LogState,
+        update: fn => update($, logAtom, current => fn(current as LogState)) as Promise<LogState>,
+      },
+      ui: {
+        read: async () => (await read($, uiAtom)) as UiState,
+        update: fn => update($, uiAtom, current => fn(current as UiState)) as Promise<UiState>,
+      },
+      artifacts: {
+        read: () => read($, artifactsAtom),
+        update: fn => update($, artifactsAtom, fn),
+      },
+    },
+    ui: {
+      invalidate: () => $.ui.invalidate('ui.render'),
+      debug: text => $.ui.log(text, { to: 'debug' }),
+    },
+  }
+}
+
+export const register: Register = (on, options) => {
+  const ctx: Ctx = { options }
   installEngramAllow(on)
   installAgentOffer(on)
+
   // The engine allows one unmatched hook per event, so session.start setup lives here.
   on('session.start', async ($, e, next) => {
-    await registerAgentTypes({ agent: { register: spec => $.agent.register(spec) } })
-    await $.command.register({
-      name: 'zboard',
-      description: 'Open the zboard task board',
-      argumentHint: '[run <change>[/<label>] | pause | set <label> <agent> <model> <effort> | config | import-odd <feature>]',
-    })
-    await $.tool.register({ name: 'board_status', description: 'Spike: answers the probe value.' })
-    await $.state.set(probe, 1)
+    const io = ioOf($)
+    await registerAgentTypes(io)
+    await registerReadTools(io)
     return next(e)
   })
 
-  on('command.run', { command: 'zboard' }, async $ => {
-    const { value } = await $.state.get(probe)
-    return { text: `${PLUGIN}: probe=${value ?? 'unset'}` }
-  })
-
   on('tool.call', { tool: 'mcp__zboard__board_status' }, async $ => {
-    const { value } = await $.state.get(probe)
-    return { result: `probe=${value ?? 'unset'}` }
+    const io = ioOf($)
+    return isolate(io, 'board_status', () => boardStatus(io), { deny: 'zboard: board_status failed' })
   })
+  on('tool.call', { tool: 'mcp__zboard__board_task' }, async ($, e) => {
+    const io = ioOf($)
+    return isolate(io, 'board_task', () => boardTask(io, String(e.taskId ?? '')), { deny: 'zboard: board_task failed' })
+  })
+  on('tool.call', { tool: 'mcp__zboard__board_artifact' }, async ($, e) => {
+    const io = ioOf($)
+    const answer = () => boardArtifact(io, String(e.taskId ?? ''), String(e.phase ?? ''))
+    return isolate(io, 'board_artifact', answer, { deny: 'zboard: board_artifact failed' })
+  })
+  on('tool.call', { tool: 'mcp__zboard__board_agent' }, async ($, e) => {
+    const io = ioOf($)
+    return isolate(io, 'board_agent', () => boardAgent(io, String(e.agentId ?? '')), { deny: 'zboard: board_agent failed' })
+  })
+  void ctx
 }

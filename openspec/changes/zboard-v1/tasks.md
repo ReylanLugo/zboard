@@ -32,7 +32,7 @@
 
 ## 6. Runtime
 
-- [ ] 6.1 Add the state-backed log store, artifact store, hook error isolation (`ModError`) and the read tools `board_status`, `board_task`, `board_artifact`, `board_agent`; remove the Task 1.1 probe code
+- [x] 6.1 Add the state-backed log store, artifact store, hook error isolation (`ModError`) and the read tools `board_status`, `board_task`, `board_artifact`, `board_agent`; remove the Task 1.1 probe code
 - [ ] 6.2 Add `/zboard` argument parsing with the open, `run <change>[/<label>]` and `pause` subcommands, and the orchestrator start: tick, pending phases, spawn with resolved model/effort, spawn deny to blocked, config warnings
 - [ ] 6.3 Add engine capture: SubagentStart/SubagentStop runs, tool-call activity, `turn.complete` tokens, unknown agents ignored, and the agent-stop bus
 - [ ] 6.4 Add phase completion: gate evaluation on SubagentStop with touched-file snapshots and scoped ptest, artifacts, retry once, escalate, loop, duplicate-stop guard, per-task error isolation, pause semantics
