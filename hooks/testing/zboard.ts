@@ -49,14 +49,41 @@ export const status = ($: Engine): Promise<StatusView> => read($, 'board_status'
 export const taskOf = ($: Engine, taskId: string): Promise<Task> => read($, 'board_task', { taskId })
 export const agentOf = ($: Engine, agentId: string): Promise<Record<string, unknown>> => read($, 'board_agent', { agentId })
 
-/** Models the working tree: tests set paths in the returned map to simulate an agent's edits. */
+const TASKS_REL = 'openspec/changes/demo/tasks.md'
+
+/** A stable stand-in for a blob hash (no newline, so `git hash-object` output stays one line per path). */
+const fakeHash = (text: string): string => {
+  let hash = 5381
+  for (const char of text) hash = ((hash * 33) ^ char.charCodeAt(0)) >>> 0
+  return `md${hash.toString(16)}`
+}
+
+const pathsAfterDashes = (argv: readonly string[]): string[] => argv.slice(argv.indexOf('--') + 1)
+
+/**
+ * Models the working tree: tests set paths in the returned map to simulate an agent's edits.
+ * Like git, a commit cleans the committed paths, and tasks.md shows as modified once its
+ * content differs from the committed one (a flip dirties it).
+ */
 export function scriptGit(w: World): Map<string, string> {
   const dirty = new Map<string, string>()
+  let committedTasks = w.files.get(TASKS_PATH)
   let staged: string[] = []
-  w.rules.push({ match: argvIs('git', 'status'), answer: () => ({ stdout: [...dirty.keys()].map(path => `?? ${path}\0`).join('') }) })
-  w.rules.push({ match: argvIs('git', 'hash-object'), answer: argv => ({ stdout: `${argv.slice(3).map(path => dirty.get(path) ?? 'missing').join('\n')}\n` }) })
+  const tree = (): Map<string, string> => {
+    const text = w.files.get(TASKS_PATH)
+    return text === committedTasks || text === undefined ? dirty : new Map([...dirty, [TASKS_REL, fakeHash(text)]])
+  }
+  const commit = (argv: readonly string[]): ProcessAnswer => {
+    for (const path of pathsAfterDashes(argv)) {
+      dirty.delete(path)
+      if (path === TASKS_REL) committedTasks = w.files.get(TASKS_PATH)
+    }
+    return {}
+  }
+  w.rules.push({ match: argvIs('git', 'status'), answer: () => ({ stdout: [...tree().keys()].map(path => `?? ${path}\0`).join('') }) })
+  w.rules.push({ match: argvIs('git', 'hash-object'), answer: argv => ({ stdout: `${argv.slice(3).map(path => tree().get(path) ?? 'missing').join('\n')}\n` }) })
   w.rules.push({ match: argvIs('git', 'add'), answer: argv => { staged = argv.slice(3); return {} } })
-  w.rules.push({ match: argvIs('git', 'commit'), answer: {} })
+  w.rules.push({ match: argvIs('git', 'commit'), answer: commit })
   w.rules.push({ match: argvIs('git', 'show'), answer: () => ({ stdout: `c0ffee1234\n\n${staged.join('\n')}\n` }) })
   return dirty
 }
