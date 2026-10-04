@@ -17,7 +17,7 @@
 
 ## 4. Scheduler
 
-- [ ] 4.1 Add the pure scheduler: runnable selection (status, dependencies, scope, priority, concurrency 3) and the code/refactor allowed-file conflict with its wait reason
+- [x] 4.1 Add the pure scheduler: runnable selection (status, dependencies, scope, priority, concurrency 3) and the code/refactor allowed-file conflict with its wait reason
 
 ## 5. Adapters
 
