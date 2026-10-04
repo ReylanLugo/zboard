@@ -73,3 +73,41 @@ export function touchedGate(touched: readonly string[], allowed: readonly string
   const extra = touched.filter(path => !allowed.includes(path))
   return extra.length === 0 ? undefined : fail(`${phase}: changed files outside its scope: ${extra.join(', ')}`)
 }
+
+export interface TestRun {
+  readonly kind: 'pass' | 'fail' | 'incomplete' | 'unknown'
+  readonly endLine: string
+  readonly failures: readonly string[]
+}
+
+function unusable(run: TestRun): GateOutcome | undefined {
+  if (run.kind === 'incomplete') return fail(`ptest incomplete twice: ${run.endLine}`, true)
+  if (run.kind === 'unknown') return fail(`ptest result unknown: ${run.endLine}`)
+  return undefined
+}
+
+export function tddTestFiles(answer: string, root: string): string[] {
+  const json = extractJson(answer)
+  const files = isRecord(json) ? (stringArray(json.testFiles) ?? []) : []
+  return unique(files.map(path => normalizeInside(path, root)).filter((path): path is string => path !== undefined))
+}
+
+export function tddGate(run: TestRun, answer: string): GateOutcome {
+  const blocked = unusable(run)
+  if (blocked !== undefined) return blocked
+  if (run.kind === 'pass') return fail('tdd: tests passed; RED was not observed')
+  const json = extractJson(answer)
+  const newTests = isRecord(json) ? (stringArray(json.newTests) ?? []) : []
+  if (newTests.length === 0) return fail('tdd: artifact lists no newTests')
+  if (run.failures.length === 0) return fail('tdd: ptest failed but no failing test could be identified')
+  const foreign = run.failures.filter(failure => !newTests.some(name => failure.includes(name)))
+  if (foreign.length > 0) return fail(`tdd: pre-existing tests fail: ${foreign.join(', ')}`)
+  return { gate: 'pass', summary: `RED: ${run.failures.length} new failing test(s)`, newTests }
+}
+
+export function greenGate(run: TestRun, phase: 'code' | 'refactor'): GateOutcome {
+  const blocked = unusable(run)
+  if (blocked !== undefined) return blocked
+  if (run.kind === 'fail') return fail(`${phase}: tests fail: ${run.failures.slice(0, 5).join(', ') || run.endLine}`)
+  return { gate: 'pass', summary: `GREEN: ${run.endLine}` }
+}
