@@ -19,6 +19,17 @@ test('uses the last json block and never falls back to an earlier one', () => {
   expect(extractJson(brokenLast)).toBeUndefined()
 })
 
+test('an unterminated last json fence fails extraction instead of letting an earlier block decide', () => {
+  expect(extractJson(`${fenced({ verdict: 'approve', findings: [] })}\nFinal:\n\`\`\`json\n{"verdict": "changes", "findings": []}\n`)).toBeUndefined()
+})
+
+test('the json fence tag is matched case-insensitively and jsonc/json5 fences are not json', () => {
+  expect(extractJson('```JSON\n{"a":1}\n```')).toEqual({ a: 1 })
+  expect(extractJson(`${fenced({ a: 1 })}\n\`\`\`Json\n{"a":2}\n\`\`\``)).toEqual({ a: 2 })
+  expect(extractJson(`${fenced({ a: 1 })}\n\`\`\`jsonc\n{"a":2}\n\`\`\``)).toEqual({ a: 1 })
+  expect(extractJson('```json5\n{"a":1}\n```')).toBeUndefined()
+})
+
 test('normalizeInside keeps repo-relative paths and rejects escapes', () => {
   expect(normalizeInside('src/a.ts', '/repo')).toBe('src/a.ts')
   expect(normalizeInside('/repo/src/./b.ts', '/repo')).toBe('src/b.ts')
