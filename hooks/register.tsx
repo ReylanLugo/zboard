@@ -16,6 +16,7 @@ import { append, isolate, readBoard } from './runtime/log-store.ts'
 import { mirrorCreated, mirrorUpdated } from './runtime/native.ts'
 import { installNotify } from './runtime/notify.ts'
 import { installOrchestrator } from './runtime/orchestrator.ts'
+import { closeDetail, renderDetail } from './ui/Detail.tsx'
 import { focusCard, renderPane } from './ui/Pane.tsx'
 import { applyStoredPrefs } from './ui/prefs.ts'
 import { flushMirror, installMirrorWiring, recover } from './runtime/recovery.ts'
@@ -89,6 +90,7 @@ function ioOf($: EngineInterface): Io {
     },
     ui: {
       open: request => $.ui.open(request),
+      close: request => $.ui.close(request),
       toast: text => $.ui.toast(text),
       invalidate: () => $.ui.invalidate('ui.render'),
       debug: text => $.ui.log(text, { to: 'debug' }),
@@ -258,6 +260,20 @@ export const register: Register = (on, options) => {
   on('ui.focus', async ($, e, next) => {
     const io = ioOf($)
     await isolate(io, 'ui.focus', () => focusCard(io, e.requestId, e.element), undefined)
+    return next(e)
+  })
+
+  // The task detail pane (ui/Detail.tsx); matchers name the pane id literally.
+  on('ui.render', { component: 'Pane', requestId: 'zboard-detail' }, async ($, e) => {
+    const board = boardOf((await read($, logAtom)) as LogState)
+    const ui = (await read($, uiAtom)) as UiState
+    const artifacts = await read($, artifactsAtom)
+    const now = await $.clock.now()
+    return renderDetail($.ui.resolve(e), ioOf($), { board, ui, artifacts, now })
+  })
+  on('ui.close', { id: 'zboard-detail' }, async ($, e, next) => {
+    const io = ioOf($)
+    await isolate(io, 'ui.close', () => closeDetail(io), undefined)
     return next(e)
   })
 }

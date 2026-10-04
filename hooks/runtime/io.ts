@@ -61,6 +61,7 @@ export interface Io {
   }
   readonly ui: {
     readonly open: EngineInterface['ui']['open']
+    readonly close: EngineInterface['ui']['close']
     readonly toast: (text: string) => void
     /** Redraws every surface reading zboard's state. */
     readonly invalidate: () => void

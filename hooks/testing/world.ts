@@ -278,6 +278,7 @@ export function worldIo(w: World): Io {
     },
     ui: {
       open: async pane => paneOpen(w, pane.id) as Awaited<ReturnType<Io['ui']['open']>>,
+      close: async () => undefined as Awaited<ReturnType<Io['ui']['close']>>,
       toast: text => { w.toasts.push(text) },
       invalidate: () => undefined,
       debug: text => { w.debug.push(text) },

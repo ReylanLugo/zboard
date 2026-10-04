@@ -8,6 +8,7 @@ import { filterLabel, visibleTasks } from './filter.ts'
 import { headerLine } from './format.ts'
 import { KanbanView } from './KanbanView.tsx'
 import { SwimlaneView } from './SwimlaneView.tsx'
+import { TreeView } from './TreeView.tsx'
 
 const EMPTY_HINT = 'No change loaded. Run /zboard run <change> to start.'
 const CARD_PREFIX = 'card:'
@@ -32,6 +33,8 @@ function Body(els: Els, io: Io, props: ViewProps): RenderElement {
   switch (props.ui.view) {
     case 'swimlane':
       return SwimlaneView(els, io, tasks, props)
+    case 'tree':
+      return TreeView(els, io, tasks, props)
     default:
       return KanbanView(els, io, tasks, props)
   }
