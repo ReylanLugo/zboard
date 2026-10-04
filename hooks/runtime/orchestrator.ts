@@ -10,6 +10,7 @@ import { configWarnings, globalLayer, resolveChoice } from '../domain/config.ts'
 import type { EventBody } from '../domain/events.ts'
 import type { Action } from '../domain/pipeline.ts'
 import { next } from '../domain/pipeline.ts'
+import { formatComment, undelivered } from '../domain/comments.ts'
 import { activeRun, runOf, taskOfAgent } from '../domain/project.ts'
 import { runnable, waitReason, writeConflict } from '../domain/scheduler.ts'
 import type { AgentRun, PendingPhase, Phase, Task } from '../domain/types.ts'
@@ -116,9 +117,10 @@ export async function spawnPhase(io: Io, ctx: Ctx, task: Task, pending: PendingP
     { task: task.overrides[role], project: project.layers[role], global: globalLayer(ctx.options, role) },
     { loop, autoEscalate: project.autoEscalate ?? ctx.options.autoEscalate === true },
   )
+  const pendingComments = undelivered(task)
   const prompt = phasePrompt({
     task, phase: pending.phase, attempt: pending.attempt, failureReason: pending.reason, partial: pending.partial,
-    artifacts: await priorArtifacts(io, task, pending.phase), comments: [],
+    artifacts: await priorArtifacts(io, task, pending.phase), comments: pendingComments.map(formatComment),
   })
   const baseline = await snapshot(io, await io.session.root())
   const spawned = await spawnRole(io, { role, prompt, description: `${task.id} ${pending.phase}`, model: choice.modelId, effort: choice.effort })
@@ -126,10 +128,13 @@ export async function spawnPhase(io: Io, ctx: Ctx, task: Task, pending: PendingP
     await append(io, [{ type: 'TaskStatusChanged', taskId: task.id, from: task.status, to: 'blocked', reason: `spawn denied: ${spawned.deny}` }])
     return
   }
-  await append(io, [{
-    type: 'PhaseStarted', taskId: task.id, phase: pending.phase, attempt: pending.attempt,
-    agentId: spawned.agentId, agentType: agentTypeOf(role), role, model: spawned.model, effort: choice.effort, baseline,
-  }])
+  await append(io, [
+    {
+      type: 'PhaseStarted', taskId: task.id, phase: pending.phase, attempt: pending.attempt,
+      agentId: spawned.agentId, agentType: agentTypeOf(role), role, model: spawned.model, effort: choice.effort, baseline,
+    },
+    ...pendingComments.map(comment => ({ type: 'CommentDelivered' as const, taskId: task.id, commentId: comment.id, to: agentTypeOf(role) })),
+  ])
 }
 
 const WRITES: readonly Phase[] = ['tdd', 'code', 'refactor']

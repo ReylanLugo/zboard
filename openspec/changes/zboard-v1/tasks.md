@@ -44,7 +44,7 @@
 ## 7. Board tools, comments and notices
 
 - [x] 7.1 Add input validation, shared interactions (comment, block/unblock, prioritize, move, assign) and the tools `board_create_task`, `board_comment`, `board_move`, `board_assign`
-- [ ] 7.2 Add comment escaping and delivery: spawn-prompt delivery, running-agent delivery through the next tool result (context spike), `CommentDelivered`
+- [x] 7.2 Add comment escaping and delivery: spawn-prompt delivery, running-agent delivery through the next tool result (context spike), `CommentDelivered`
 - [ ] 7.3 Add actionable-only main-session notices (needs_decision, escalation, change completion with the `ptest --full` reminder)
 
 ## 8. Slash commands

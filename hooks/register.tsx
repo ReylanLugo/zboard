@@ -11,7 +11,8 @@ import type { Ctx } from './runtime/ctx.ts'
 import type { Io } from './runtime/io.ts'
 import { captureStop, captureTokens, touch } from './runtime/capture.ts'
 import { guardWrite } from './runtime/guard.ts'
-import { isolate } from './runtime/log-store.ts'
+import { noteFor } from './runtime/inject.ts'
+import { append, isolate, readBoard } from './runtime/log-store.ts'
 import { mirrorCreated, mirrorUpdated } from './runtime/native.ts'
 import { installOrchestrator } from './runtime/orchestrator.ts'
 import { flushMirror, installMirrorWiring, recover } from './runtime/recovery.ts'
@@ -200,10 +201,18 @@ export const register: Register = (on, options) => {
     await isolate(io, 'classic.SubagentStop', () => captureStop(io, stop), undefined)
     return result
   })
+  // The one unmatched tool.call hook: activity capture, then comment delivery (runtime/inject.ts),
+  // which appends pending comments to the agent's next tool result as `context`.
   on('tool.call', async ($, e, next) => {
+    const agentId = e.agentId
+    if (agentId === undefined) return next(e)
     const io = ioOf($)
-    if (e.agentId !== undefined) await isolate(io, 'capture.tool.call', () => touch(io, e.agentId as string, e.tool), undefined)
-    return next(e)
+    await isolate(io, 'capture.tool.call', () => touch(io, agentId, e.tool), undefined)
+    const found = await isolate(io, 'inject.tool.call', async () => noteFor(await readBoard(io), agentId), undefined)
+    const ran = await next(e)
+    if (found === undefined || ran.deny !== undefined) return ran
+    await isolate(io, 'inject.deliver', () => append(io, found.events), undefined)
+    return { ...ran, context: [...(ran.context ?? []), found.note] }
   })
   on('turn.complete', async ($, e, next) => {
     const io = ioOf($)
