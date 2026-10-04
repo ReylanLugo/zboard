@@ -54,7 +54,7 @@
 
 ## 9. UI parts
 
-- [ ] 9.1 Add pure UI formatting: header line, progress bar, phase stepper, token and elapsed formats, heartbeat, filters
+- [x] 9.1 Add pure UI formatting: header line, progress bar, phase stepper, token and elapsed formats, heartbeat, filters
 - [ ] 9.2 Add UI state with `$.store` preferences, UI actions, and the Card and AgentChip parts
 
 ## 10. Views
