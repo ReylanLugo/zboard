@@ -1,5 +1,5 @@
 import { mock } from 'claude-code/testing'
-import type { AgentInfo, AgentSpawnInput, AgentSpawnResult, FsStat, On, ProcessRunResult, ToolCallResult } from 'claude-code'
+import type { AgentInfo, AgentSpawnInput, AgentSpawnResult, FsStat, On, ProcessRunResult, SessionMessagesResult, ToolCallResult } from 'claude-code'
 import type { MockClock } from 'claude-code/testing'
 
 import { EMPTY_LOG } from '../domain/log.ts'
@@ -243,6 +243,15 @@ export function worldIo(w: World): Io {
         w.timers.push(timer)
         return { cancel: () => { timer.isCancelled = true } }
       },
+      every: (ms, fn) => {
+        let current: IoTimer | undefined
+        const arm = (): void => {
+          current = { due: w.clock.now() + ms, fn: () => { arm(); fn() }, isCancelled: false }
+          w.timers.push(current)
+        }
+        arm()
+        return { cancel: () => { if (current !== undefined) current.isCancelled = true } }
+      },
     },
     state: {
       log: memoryPort(w, 'log', EMPTY_LOG),
@@ -255,7 +264,7 @@ export function worldIo(w: World): Io {
         return { command: spec.name } as Awaited<ReturnType<Io['command']['register']>>
       },
     },
-    session: { root: async () => ROOT },
+    session: { root: async () => ROOT, messages: async () => [] as unknown as SessionMessagesResult },
     ui: {
       open: async pane => paneOpen(w, pane.id) as Awaited<ReturnType<Io['ui']['open']>>,
       invalidate: () => undefined,

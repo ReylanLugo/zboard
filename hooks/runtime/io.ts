@@ -1,4 +1,4 @@
-import type { AgentSpawnArgs, AgentSpawnResult, EngineInterface, Timer, ToolCallResult } from 'claude-code'
+import type { AgentSpawnArgs, AgentSpawnResult, EngineInterface, SessionMessagesAgentArgs, SessionMessagesResult, Timer, ToolCallResult } from 'claude-code'
 
 import type { LogState } from '../domain/log.ts'
 import type { UiState } from './ui-types.ts'
@@ -40,6 +40,7 @@ export interface Io {
   readonly clock: {
     readonly now: () => Promise<number>
     readonly after: (ms: number, fn: () => void) => Timer
+    readonly every: (ms: number, fn: () => void) => Timer
   }
   readonly state: {
     readonly log: StatePort<LogState>
@@ -51,6 +52,7 @@ export interface Io {
   }
   readonly session: {
     readonly root: () => Promise<string>
+    readonly messages: (query: SessionMessagesAgentArgs) => Promise<SessionMessagesResult>
   }
   readonly ui: {
     readonly open: EngineInterface['ui']['open']

@@ -14,6 +14,8 @@ import { guardWrite } from './runtime/guard.ts'
 import { isolate } from './runtime/log-store.ts'
 import { mirrorCreated, mirrorUpdated } from './runtime/native.ts'
 import { installOrchestrator } from './runtime/orchestrator.ts'
+import { flushMirror, installMirrorWiring, recover } from './runtime/recovery.ts'
+import { fileChanged, startPolling, watchPathsFor } from './runtime/watcher.ts'
 import type { UiState } from './runtime/ui-types.ts'
 import { DEFAULT_UI } from './runtime/ui-types.ts'
 import { boardAgent, boardArtifact, boardStatus, boardTask, registerReadTools } from './tools/board-read.ts'
@@ -53,6 +55,7 @@ function ioOf($: EngineInterface): Io {
     clock: {
       now: () => $.clock.now(),
       after: (ms, fn) => $.clock.after(ms, fn),
+      every: (ms, fn) => $.clock.every(ms, fn),
     },
     state: {
       // The contract declares these values structurally; the domain types narrow them here.
@@ -70,7 +73,7 @@ function ioOf($: EngineInterface): Io {
       },
     },
     command: { register: spec => $.command.register(spec) },
-    session: { root: () => $.session.root() },
+    session: { root: () => $.session.root(), messages: query => $.session.messages(query) },
     ui: {
       open: request => $.ui.open(request),
       invalidate: () => $.ui.invalidate('ui.render'),
@@ -99,13 +102,43 @@ export const register: Register = (on, options) => {
   installEngramAllow(on)
   installAgentOffer(on)
   installOrchestrator(ctx)
+  installMirrorWiring()
 
-  // The engine allows one unmatched hook per event, so session.start setup lives here.
+  // The engine allows one unmatched hook per event, so session.start setup lives here:
+  // registrations, then (once the session started) tasks.md polling and recovery.
   on('session.start', async ($, e, next) => {
     const io = ioOf($)
     await registerAgentTypes(io)
     await registerReadTools(io)
     await registerCommand(io)
+    const started = await next(e)
+    startPolling(io, ctx)
+    await isolate(io, 'recovery.session.start', () => recover(io, ctx, true), undefined)
+    return started
+  })
+
+  // Watcher and recovery (runtime/watcher.ts, runtime/recovery.ts).
+  on('classic.FileChanged', async ($, e, next) => {
+    const result = await next(e)
+    const io = ioOf($)
+    await isolate(io, 'classic.FileChanged', () => fileChanged(io, ctx, e.file_path), undefined)
+    return result
+  })
+  on('classic.SessionStart', async ($, e, next) => {
+    const result = await next(e)
+    const io = ioOf($)
+    const paths = await isolate(io, 'classic.SessionStart', () => watchPathsFor(io), [])
+    return paths.length === 0 ? result : { ...result, watchPaths: [...(result.watchPaths ?? []), ...paths] }
+  })
+  on('classic.PostCompact', async ($, e, next) => {
+    const result = await next(e)
+    const io = ioOf($)
+    await isolate(io, 'classic.PostCompact', () => recover(io, ctx, false), undefined)
+    return result
+  })
+  on('classic.PreCompact', async ($, e, next) => {
+    const io = ioOf($)
+    await isolate(io, 'classic.PreCompact', () => flushMirror(io), undefined)
     return next(e)
   })
 
