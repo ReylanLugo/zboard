@@ -92,6 +92,12 @@ export function tddTestFiles(answer: string, root: string): string[] {
   return unique(files.map(path => normalizeInside(path, root)).filter((path): path is string => path !== undefined))
 }
 
+const MIN_TEST_NAME = 3
+
+/** A failure is that test when it is its node id, or a pytest (`::`) or vitest (` > `) id ending with it. */
+const namesTest = (failure: string, name: string): boolean =>
+  failure === name || failure.endsWith(`::${name}`) || failure.endsWith(` > ${name}`)
+
 export function tddGate(run: TestRun, answer: string): GateOutcome {
   const blocked = unusable(run)
   if (blocked !== undefined) return blocked
@@ -99,8 +105,10 @@ export function tddGate(run: TestRun, answer: string): GateOutcome {
   const json = extractJson(answer)
   const newTests = isRecord(json) ? (stringArray(json.newTests) ?? []) : []
   if (newTests.length === 0) return fail('tdd: artifact lists no newTests')
+  const short = newTests.find(name => name.trim().length < MIN_TEST_NAME)
+  if (short !== undefined) return fail(`tdd: newTests has an empty or too short name: ${JSON.stringify(short)}`)
   if (run.failures.length === 0) return fail('tdd: ptest failed but no failing test could be identified')
-  const foreign = run.failures.filter(failure => !newTests.some(name => failure.includes(name)))
+  const foreign = run.failures.filter(failure => !newTests.some(name => namesTest(failure, name.trim())))
   if (foreign.length > 0) return fail(`tdd: pre-existing tests fail: ${foreign.join(', ')}`)
   return { gate: 'pass', summary: `RED: ${run.failures.length} new failing test(s)`, newTests }
 }

@@ -40,3 +40,19 @@ test('green gate passes only on a passing run', () => {
 test('tddTestFiles keeps only files inside the repository', () => {
   expect(tddTestFiles('```json\n{"testFiles":["tests/a.py","../x.py"],"newTests":["t"]}\n```', '/repo')).toEqual(['tests/a.py'])
 })
+
+const tddWith = (newTests: string[]): string => `\`\`\`json\n${JSON.stringify({ testFiles: ['tests/test_parse.py'], newTests })}\n\`\`\``
+
+test('tdd gate refuses empty or very short newTests names', () => {
+  const failures = ['tests/test_parse.py::test_old']
+  expect(tddGate(run('fail', failures), tddWith(['']))).toEqual({ gate: 'fail', reason: 'tdd: newTests has an empty or too short name: ""', terminal: false })
+  expect(tddGate(run('fail', failures), tddWith(['test_new', 'ab']))).toEqual({ gate: 'fail', reason: 'tdd: newTests has an empty or too short name: "ab"', terminal: false })
+})
+
+test('tdd gate matches a new test by exact name or node-id suffix, never by substring', () => {
+  expect(tddGate(run('fail', ['tests/test_parse.py::test_old']), tddWith(['test']))).toMatchObject({ gate: 'fail', reason: 'tdd: pre-existing tests fail: tests/test_parse.py::test_old' })
+  expect(tddGate(run('fail', ['tests/test_parse.py::test_parse_multiline']), tddWith(['parse']))).toMatchObject({ gate: 'fail' })
+  expect(tddGate(run('fail', ['tests/a.test.ts > parser > keeps multiline']), tddWith(['multiline']))).toMatchObject({ gate: 'fail' })
+  expect(tddGate(run('fail', ['tests/a.test.ts > parser > keeps multiline']), tddWith(['keeps multiline']))).toMatchObject({ gate: 'pass' })
+  expect(tddGate(run('fail', ['tests/test_parse.py::test_new']), tddWith(['tests/test_parse.py::test_new']))).toMatchObject({ gate: 'pass' })
+})
