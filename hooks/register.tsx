@@ -10,6 +10,7 @@ import { EMPTY_LOG } from './domain/log.ts'
 import type { Ctx } from './runtime/ctx.ts'
 import type { Io } from './runtime/io.ts'
 import { captureStop, captureTokens, touch } from './runtime/capture.ts'
+import { guardWrite } from './runtime/guard.ts'
 import { isolate } from './runtime/log-store.ts'
 import { mirrorCreated, mirrorUpdated } from './runtime/native.ts'
 import { installOrchestrator } from './runtime/orchestrator.ts'
@@ -80,6 +81,21 @@ function ioOf($: EngineInterface): Io {
 
 export const register: Register = (on, options) => {
   const ctx: Ctx = { options }
+
+  // Allowed-file guard (runtime/guard.ts), registered first so it sits above every other tool.call hook.
+  on('tool.call', { tool: 'Edit' }, async ($, e, next) => {
+    const deny = await guardWrite(ioOf($), e.agentId, e.file_path)
+    return deny === undefined ? next(e) : { deny }
+  })
+  on('tool.call', { tool: 'Write' }, async ($, e, next) => {
+    const deny = await guardWrite(ioOf($), e.agentId, e.file_path)
+    return deny === undefined ? next(e) : { deny }
+  })
+  on('tool.call', { tool: 'NotebookEdit' }, async ($, e, next) => {
+    const deny = await guardWrite(ioOf($), e.agentId, e.notebook_path)
+    return deny === undefined ? next(e) : { deny }
+  })
+
   installEngramAllow(on)
   installAgentOffer(on)
   installOrchestrator(ctx)

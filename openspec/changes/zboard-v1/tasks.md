@@ -38,7 +38,7 @@
 - [x] 6.4 Add phase completion: gate evaluation on SubagentStop with touched-file snapshots and scoped ptest, artifacts, retry once, escalate, loop, duplicate-stop guard, per-task error isolation, pause semantics
 - [x] 6.5 Add task close: task-scoped commit, verified flip of the `tasks.md` line, failure to `needs_decision`, change completion
 - [x] 6.6 Add native `TaskCreate`/`TaskUpdate` mirroring without altering the native result
-- [ ] 6.7 Add the allowed-file guard: read-only phase denies, tdd/code/refactor allow-lists with lexical and real-path placement, third deny escalates "plan too narrow"
+- [x] 6.7 Add the allowed-file guard: read-only phase denies, tdd/code/refactor allow-lists with lexical and real-path placement, third deny escalates "plan too narrow"
 - [ ] 6.8 Add the `tasks.md` watcher (5 s poll plus FileChanged via SessionStart watchPaths, spike), Engram mirror wiring with PreCompact flush, and recovery on `session.start`/`PostCompact` with interrupted-run relaunch and pane auto-open
 
 ## 7. Board tools, comments and notices
