@@ -19,6 +19,7 @@ import { fileChanged, startPolling, watchPathsFor } from './runtime/watcher.ts'
 import type { UiState } from './runtime/ui-types.ts'
 import { DEFAULT_UI } from './runtime/ui-types.ts'
 import { boardAgent, boardArtifact, boardStatus, boardTask, registerReadTools } from './tools/board-read.ts'
+import { assignTool, commentTool, createTaskTool, moveTool, registerWriteTools } from './tools/board-write.ts'
 
 // Composition root. Claude Code's checker reads `$.state` only through atoms
 // declared as consts of the calling file and follows `$` only into functions of
@@ -110,6 +111,7 @@ export const register: Register = (on, options) => {
     const io = ioOf($)
     await registerAgentTypes(io)
     await registerReadTools(io)
+    await registerWriteTools(io)
     await registerCommand(io)
     const started = await next(e)
     startPolling(io, ctx)
@@ -158,6 +160,24 @@ export const register: Register = (on, options) => {
   on('tool.call', { tool: 'mcp__zboard__board_agent' }, async ($, e) => {
     const io = ioOf($)
     return isolate(io, 'board_agent', () => boardAgent(io, String(e.agentId ?? '')), { deny: 'zboard: board_agent failed' })
+  })
+
+  // Board write tools (tools/board-write.ts).
+  on('tool.call', { tool: 'mcp__zboard__board_create_task' }, async ($, e) => {
+    const io = ioOf($)
+    return isolate(io, 'board_create_task', () => createTaskTool(io, e), { deny: 'zboard: board_create_task failed' })
+  })
+  on('tool.call', { tool: 'mcp__zboard__board_comment' }, async ($, e) => {
+    const io = ioOf($)
+    return isolate(io, 'board_comment', () => commentTool(io, e), { deny: 'zboard: board_comment failed' })
+  })
+  on('tool.call', { tool: 'mcp__zboard__board_move' }, async ($, e) => {
+    const io = ioOf($)
+    return isolate(io, 'board_move', () => moveTool(io, e), { deny: 'zboard: board_move failed' })
+  })
+  on('tool.call', { tool: 'mcp__zboard__board_assign' }, async ($, e) => {
+    const io = ioOf($)
+    return isolate(io, 'board_assign', () => assignTool(io, e), { deny: 'zboard: board_assign failed' })
   })
 
   on('command.run', { command: 'zboard' }, async ($, e) => {
