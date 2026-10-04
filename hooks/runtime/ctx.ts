@@ -12,3 +12,4 @@ export const concurrencyOf = (ctx: Ctx): number => {
   return typeof value === 'number' && Number.isInteger(value) && value >= 1 ? value : DEFAULT_CONCURRENCY
 }
 export const PANE_ID = 'zboard'
+export const DETAIL_ID = 'zboard-detail'

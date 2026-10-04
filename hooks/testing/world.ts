@@ -258,6 +258,10 @@ export function worldIo(w: World): Io {
       ui: memoryPort(w, 'ui', DEFAULT_UI),
       artifacts: memoryPort<Readonly<Record<string, string>>>(w, 'artifacts', {}),
     },
+    store: {
+      get: async key => w.store.get(key),
+      set: async (key, value) => { w.store.set(key, JSON.parse(JSON.stringify(value)) as unknown) },
+    },
     command: {
       register: async spec => {
         w.commands.push(spec.name)

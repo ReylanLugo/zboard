@@ -47,6 +47,10 @@ export interface Io {
     readonly ui: StatePort<UiState>
     readonly artifacts: StatePort<Readonly<Record<string, string>>>
   }
+  readonly store: {
+    readonly get: (key: string) => Promise<unknown>
+    readonly set: (key: string, value: unknown) => Promise<void>
+  }
   readonly command: {
     readonly register: EngineInterface['command']['register']
   }

@@ -16,6 +16,7 @@ import { append, isolate, readBoard } from './runtime/log-store.ts'
 import { mirrorCreated, mirrorUpdated } from './runtime/native.ts'
 import { installNotify } from './runtime/notify.ts'
 import { installOrchestrator } from './runtime/orchestrator.ts'
+import { applyStoredPrefs } from './ui/prefs.ts'
 import { flushMirror, installMirrorWiring, recover } from './runtime/recovery.ts'
 import { fileChanged, startPolling, watchPathsFor } from './runtime/watcher.ts'
 import type { UiState } from './runtime/ui-types.ts'
@@ -54,6 +55,10 @@ function ioOf($: EngineInterface): Io {
     tool: {
       call: input => $.tool.call(input),
       register: spec => $.tool.register(spec),
+    },
+    store: {
+      get: key => $.store.get(key),
+      set: (key, value) => $.store.set(key, value),
     },
     clock: {
       now: () => $.clock.now(),
@@ -121,6 +126,7 @@ export const register: Register = (on, options) => {
     await registerReadTools(io)
     await registerWriteTools(io)
     await registerCommand(io)
+    await isolate(io, 'prefs.session.start', () => applyStoredPrefs(io), undefined)
     const started = await next(e)
     startPolling(io, ctx)
     await isolate(io, 'recovery.session.start', () => recover(io, ctx, true), undefined)
