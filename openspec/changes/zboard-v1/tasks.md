@@ -5,7 +5,7 @@
 
 ## 2. Domain model and event log
 
-- [ ] 2.1 Define domain types and events and the pure `project` fold for task lifecycle events (ChangeLoaded reconcile, TaskCreated/Updated/Removed/Restored, TaskStatusChanged, comments, RunControl, MirrorState, ConfigWarnings, ModError)
+- [x] 2.1 Define domain types and events and the pure `project` fold for task lifecycle events (ChangeLoaded reconcile, TaskCreated/Updated/Removed/Restored, TaskStatusChanged, comments, RunControl, MirrorState, ConfigWarnings, ModError)
 - [ ] 2.2 Extend `project` for agent and phase events (PhaseStarted, AgentActivity, AgentStopped, PhaseCompleted, ReviewVerdictRecorded, GuardDenied) and the `taskOfAgent`/`activeRun` lookups
 - [ ] 2.3 Add the append-only log with snapshot-plus-tail compaction (threshold 500), the equivalence property test and the state-size spike
 
