@@ -24,7 +24,7 @@
 - [x] 5.1 Add the pure `tasks.md` parser (sections, labels, continuation lines, `BLOCKED on`, explicit and section-barrier dependencies) and the byte-preserving checkbox flip
 - [x] 5.2 Add the OpenSpec IO adapter: change-name validation, change loading and the re-read-then-flip write
 - [x] 5.3 Add the ptest adapter: per-file `ptest <file>` runs via `$.process.run`, exit classification, one retry for 70/75/124 and timeouts, end line and failure parsing
-- [ ] 5.4 Add the git adapter: porcelain snapshot with blob hashes, touched-path diff, task-scoped `commit --only` with post-commit verification
+- [x] 5.4 Add the git adapter: porcelain snapshot with blob hashes, touched-path diff, task-scoped `commit --only` with post-commit verification
 - [ ] 5.5 Add the Engram adapter: topic keys, artifact truncation, debounced mirror with rev/updatedAt and pending flag, topic fetch (read-format spike) and the `tool.check` allow for zboard's own Engram calls
 - [ ] 5.6 Add model/effort configuration: model table, defaults, three-level precedence with sources, invalid-value fallback, malformed project config, auto-escalation
 - [ ] 5.7 Add the agents adapter and prompts: six `zboard:*` types, hidden from the model via `agent.offer`, per-role serialized re-register-then-spawn with model and effort (effort spike), phase prompts
