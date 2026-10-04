@@ -4,6 +4,7 @@ import type { Io } from '../runtime/io.ts'
 import { pauseRun, startRun } from '../runtime/orchestrator.ts'
 import type { ZboardCommand } from './args.ts'
 import { USAGE } from './args.ts'
+import { setOverride, showConfig } from './config-view.ts'
 
 export async function registerCommand(io: Io): Promise<void> {
   await io.command.register({
@@ -30,6 +31,10 @@ export async function dispatch(io: Io, ctx: Ctx, command: ZboardCommand): Promis
     }
     case 'pause':
       return pauseRun(io)
+    case 'set':
+      return setOverride(io, command)
+    case 'config':
+      return showConfig(io, ctx)
     case 'error':
       return `zboard: ${command.message}`
     default:

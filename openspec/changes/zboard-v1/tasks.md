@@ -49,7 +49,7 @@
 
 ## 8. Slash commands
 
-- [ ] 8.1 Add `/zboard set <label> <agent> <model> <effort>` and `/zboard config` with effective values and sources
+- [x] 8.1 Add `/zboard set <label> <agent> <model> <effort>` and `/zboard config` with effective values and sources
 - [ ] 8.2 Add `/zboard import-odd <feature>` with newest-source selection, preview, confirmation by digest, refusal on existing target and Engram history
 
 ## 9. UI parts
