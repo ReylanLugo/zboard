@@ -1,10 +1,12 @@
 import type { Register } from 'claude-code'
 
+import { installEngramAllow } from './adapters/engram.ts'
 import { PLUGIN } from './runtime/ctx.ts'
 
 const probe = { plugin: 'zboard', key: 'probe' } as const
 
 export const register: Register = on => {
+  installEngramAllow(on)
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'zboard',

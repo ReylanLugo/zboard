@@ -1,11 +1,13 @@
 import { mock } from 'claude-code/testing'
-import type { AgentSpawnInput, FsStat, On, ProcessRunResult } from 'claude-code'
+import type { AgentSpawnInput, FsStat, On, ProcessRunResult, ToolCallResult } from 'claude-code'
+import type { MockClock } from 'claude-code/testing'
 
 import type { Io } from '../runtime/io.ts'
 import { NATIVE_STATE } from './harness-facts.ts'
 
 export const ROOT = '/repo'
 export const NOW = 1_000_000
+const SETTLE_TURNS = 200
 
 export interface ProcessAnswer {
   readonly exitCode?: number
@@ -50,7 +52,8 @@ export interface World {
   readonly alive: Set<string>
   readonly saved: SavedTopic[]
   readonly store: Map<string, unknown>
-  readonly clock: ReturnType<typeof mock.clock>
+  readonly clock: MockClock
+  readonly timers: IoTimer[]
   spawnDeny: string | undefined
   engram: 'up' | 'error' | 'missing'
   placePanes: boolean
@@ -81,6 +84,7 @@ const isDir = (w: World, path: string): boolean =>
   path === ROOT || [...w.files.keys()].some(key => key.startsWith(`${path}/`))
 
 export function installWorld(on: On): World {
+  const timers: IoTimer[] = []
   const w: World = {
     files: new Map(),
     mtimes: new Map(),
@@ -97,7 +101,8 @@ export function installWorld(on: On): World {
     alive: new Set(),
     saved: [],
     store: new Map(),
-    clock: mock.clock(on, { now: NOW }),
+    clock: ioClock(on, timers),
+    timers,
     spawnDeny: undefined,
     engram: 'up',
     placePanes: true,
@@ -213,6 +218,48 @@ export function worldIo(w: World): Io {
       stat: (path, options) => settle(fsStat(w, path, options?.resolve)),
     },
     process: { run: argv => settle(processRun(w, argv)) },
+    tool: { call: input => settle(engramAnswer(w, input.tool, input)) },
+    clock: {
+      now: async () => w.clock.now(),
+      after: (ms, fn) => {
+        const timer: IoTimer = { due: w.clock.now() + ms, fn, isCancelled: false }
+        w.timers.push(timer)
+        return { cancel: () => { timer.isCancelled = true } }
+      },
+    },
+  }
+}
+
+const engramAnswer = (w: World, tool: string, input: Record<string, unknown>): Answer<ToolCallResult> => {
+  try {
+    return { value: engramCall(w, tool, input) as unknown as ToolCallResult }
+  } catch (error) {
+    return { deny: error instanceof Error ? error.message : String(error) }
+  }
+}
+
+/** A timer set through `worldIo`; fired by the world clock once its time comes. */
+export interface IoTimer {
+  readonly due: number
+  readonly fn: () => void
+  isCancelled: boolean
+}
+
+/** The kit's mock clock, whose moves also fire the timers set through `worldIo`. */
+function ioClock(on: On, timers: IoTimer[]): MockClock {
+  const base = mock.clock(on, { now: NOW })
+  const fire = async (): Promise<void> => {
+    const due = timers.filter(timer => !timer.isCancelled && timer.due <= base.now()).sort((a, b) => a.due - b.due)
+    for (const timer of due) timer.isCancelled = true
+    await Promise.all(due.map(timer => Promise.resolve(timer.fn() as unknown)))
+    // Timer callbacks start async work without returning it; let that work settle.
+    for (let turn = 0; turn < SETTLE_TURNS; turn++) await Promise.resolve()
+  }
+  return {
+    ...base,
+    advance: async ms => { await base.advance(ms); await fire() },
+    set: async ms => { await base.set(ms); await fire() },
+    sleep: async ms => { await base.sleep(ms); await fire() },
   }
 }
 
@@ -270,36 +317,54 @@ function engramGate(w: World, tool: string): { isError: true; result: string; te
   return w.engram === 'error' ? { isError: true, result: 'engram unavailable', text: 'engram unavailable' } : undefined
 }
 
+type ToolAnswer = { isError?: true; result: string; text: string }
+type Args = Record<string, unknown>
+
+const engramSave = (w: World, e: Args): ToolAnswer => {
+  const topic = String(e.topic_key ?? e.title ?? '')
+  const index = w.saved.findIndex(saved => saved.topic === topic)
+  const id = index >= 0 ? (w.saved[index]?.id ?? index + 1) : w.saved.length + 1
+  const entry = { id, topic, content: String(e.content ?? '') }
+  if (index >= 0) w.saved.splice(index, 1, entry)
+  else w.saved.push(entry)
+  return { result: `saved #${id}`, text: `Memory saved #${id}` }
+}
+
+const engramSearch = (w: World, e: Args): ToolAnswer => {
+  const query = String(e.query ?? '')
+  const hits = w.saved.filter(saved => saved.topic.includes(query) || saved.content.includes(query))
+  const text = hits.length === 0
+    ? 'No memories found.'
+    : [`Found ${hits.length} memories:`, ...hits.map(hit => `#${hit.id} [architecture] ${hit.topic}`)].join('\n')
+  return { result: text, text }
+}
+
+const engramGet = (w: World, e: Args): ToolAnswer => {
+  const hit = w.saved.find(saved => saved.id === Number(e.id))
+  if (hit === undefined) return { isError: true, result: 'not found', text: 'not found' }
+  const text = `#${hit.id} ${hit.topic}\nTopic: ${hit.topic}\n\n${hit.content}`
+  return { result: text, text }
+}
+
+const ENGRAM: Record<string, (w: World, e: Args) => ToolAnswer> = {
+  mcp__engram__mem_save: engramSave,
+  mcp__engram__mem_search: engramSearch,
+  mcp__engram__mem_get_observation: engramGet,
+}
+
+/** Answers an Engram tool call as the world's hooks do; throws when Engram is missing. */
+function engramCall(w: World, tool: string, e: Args): ToolAnswer {
+  const failed = engramGate(w, tool)
+  if (failed !== undefined) return failed
+  const handler = ENGRAM[tool]
+  if (handler === undefined) throw new Error(`world: unscripted tool: ${tool}`)
+  return handler(w, e)
+}
+
 function installEngram(on: On, w: World): void {
-  on('tool.call', { tool: 'mcp__engram__mem_save' }, (_$, e) => {
-    const failed = engramGate(w, e.tool)
-    if (failed !== undefined) return failed
-    const topic = String(e.topic_key ?? e.title ?? '')
-    const index = w.saved.findIndex(saved => saved.topic === topic)
-    const id = index >= 0 ? (w.saved[index]?.id ?? index + 1) : w.saved.length + 1
-    const entry = { id, topic, content: String(e.content ?? '') }
-    if (index >= 0) w.saved.splice(index, 1, entry)
-    else w.saved.push(entry)
-    return { result: `saved #${id}`, text: `Memory saved #${id}` }
-  })
-  on('tool.call', { tool: 'mcp__engram__mem_search' }, (_$, e) => {
-    const failed = engramGate(w, e.tool)
-    if (failed !== undefined) return failed
-    const query = String(e.query ?? '')
-    const hits = w.saved.filter(saved => saved.topic.includes(query) || saved.content.includes(query))
-    const text = hits.length === 0
-      ? 'No memories found.'
-      : [`Found ${hits.length} memories:`, ...hits.map(hit => `#${hit.id} [architecture] ${hit.topic}`)].join('\n')
-    return { result: text, text }
-  })
-  on('tool.call', { tool: 'mcp__engram__mem_get_observation' }, (_$, e) => {
-    const failed = engramGate(w, e.tool)
-    if (failed !== undefined) return failed
-    const hit = w.saved.find(saved => saved.id === Number(e.id))
-    if (hit === undefined) return { isError: true as const, result: 'not found', text: 'not found' }
-    const text = `#${hit.id} ${hit.topic}\nTopic: ${hit.topic}\n\n${hit.content}`
-    return { result: text, text }
-  })
+  on('tool.call', { tool: 'mcp__engram__mem_save' }, (_$, e) => engramCall(w, e.tool, e))
+  on('tool.call', { tool: 'mcp__engram__mem_search' }, (_$, e) => engramCall(w, e.tool, e))
+  on('tool.call', { tool: 'mcp__engram__mem_get_observation' }, (_$, e) => engramCall(w, e.tool, e))
 }
 
 function installClassic(on: On): void {
