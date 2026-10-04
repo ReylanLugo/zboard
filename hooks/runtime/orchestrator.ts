@@ -1,18 +1,27 @@
 import type { Io } from './io.ts'
 
 import { spawnRole } from '../adapters/agents.ts'
+import { mirror, phaseTopic, projectOf, truncateArtifact } from '../adapters/engram.ts'
 import { readProjectConfig } from '../adapters/config-io.ts'
 import { snapshot } from '../adapters/git.ts'
 import { loadChange } from '../adapters/openspec.ts'
 import { phasePrompt } from '../adapters/prompts.ts'
 import { configWarnings, globalLayer, resolveChoice } from '../domain/config.ts'
-import { activeRun } from '../domain/project.ts'
+import type { EventBody } from '../domain/events.ts'
+import type { Action } from '../domain/pipeline.ts'
+import { next } from '../domain/pipeline.ts'
+import { activeRun, runOf, taskOfAgent } from '../domain/project.ts'
 import { runnable, waitReason, writeConflict } from '../domain/scheduler.ts'
-import type { PendingPhase, Phase, Task } from '../domain/types.ts'
+import type { AgentRun, PendingPhase, Phase, Task } from '../domain/types.ts'
 import { PHASES, ROLE_OF, WRITE_PHASES, agentTypeOf } from '../domain/types.ts'
+import type { AgentStop } from './bus.ts'
+import { onAgentStop } from './bus.ts'
+import { closeTask } from './close.ts'
 import type { Ctx } from './ctx.ts'
 import { concurrencyOf } from './ctx.ts'
-import { append, getArtifact, isolateTask, readBoard } from './log-store.ts'
+import type { Evaluation } from './evaluate.ts'
+import { evaluateStop } from './evaluate.ts'
+import { append, getArtifact, isolateTask, putArtifact, readBoard } from './log-store.ts'
 
 export interface RunScope {
   readonly changeId: string
@@ -121,4 +130,78 @@ export async function spawnPhase(io: Io, ctx: Ctx, task: Task, pending: PendingP
     type: 'PhaseStarted', taskId: task.id, phase: pending.phase, attempt: pending.attempt,
     agentId: spawned.agentId, agentType: agentTypeOf(role), role, model: spawned.model, effort: choice.effort, baseline,
   }])
+}
+
+const WRITES: readonly Phase[] = ['tdd', 'code', 'refactor']
+
+function completionEvents(task: Task, run: AgentRun, evaluation: Evaluation, artifactKey: string): EventBody[] {
+  const { outcome } = evaluation
+  const base = {
+    taskId: task.id, phase: run.phase, attempt: run.attempt, artifactKey,
+    touched: WRITES.includes(run.phase) ? evaluation.touched : [],
+  }
+  if (outcome.gate === 'fail') return [{ type: 'PhaseCompleted', ...base, gate: 'fail', reason: outcome.reason }]
+  const testFiles = outcome.testFiles ?? (run.phase === 'tdd' ? evaluation.testFiles : undefined)
+  return [
+    {
+      type: 'PhaseCompleted', ...base, gate: 'pass', summary: outcome.summary,
+      ...(outcome.allowedFiles === undefined ? {} : { allowedFiles: outcome.allowedFiles }),
+      ...(testFiles === undefined ? {} : { testFiles }),
+    },
+    ...(outcome.verdict === undefined ? [] : [{ type: 'ReviewVerdictRecorded' as const, taskId: task.id, verdict: outcome.verdict }]),
+  ]
+}
+
+async function execute(io: Io, ctx: Ctx, task: Task, action: Action): Promise<void> {
+  switch (action.kind) {
+    case 'advance':
+      return setPending(io, ctx, task.id, { phase: action.phase, attempt: 1 })
+    case 'spawn':
+      return setPending(io, ctx, task.id, { phase: action.phase, attempt: action.attempt, reason: action.reason })
+    case 'loop':
+      return setPending(io, ctx, task.id, { phase: 'refactor', attempt: 1 })
+    case 'escalate':
+      await append(io, [{ type: 'TaskStatusChanged', taskId: task.id, from: task.status, to: 'needs_decision', reason: action.reason }])
+      return tick(io, ctx)
+    case 'done':
+      await closeTask(io, task)
+      return tick(io, ctx)
+  }
+}
+
+const inFlight = new Set<string>()
+
+/** Claimed synchronously, before any await, so a concurrent duplicate stop sees the claim. */
+async function completePhase(io: Io, ctx: Ctx, stop: AgentStop): Promise<void> {
+  if (inFlight.has(stop.agentId)) return
+  inFlight.add(stop.agentId)
+  try {
+    const board = await readBoard(io)
+    const task = taskOfAgent(board, stop.agentId)
+    const run = task === undefined ? undefined : runOf(task, stop.agentId)
+    if (task === undefined || run === undefined || run.outcome !== undefined) return
+    if (task.status !== 'running' && task.status !== 'review') return
+    await isolateTask(io, 'orchestrator.complete', task.id, async () => {
+      const root = await io.session.root()
+      const answer = stop.answer ?? ''
+      const evaluation = await evaluateStop(io, board, task, run, answer, root)
+      const n = task.phases.filter(record => record.phase === run.phase).length + 1
+      const artifactKey = phaseTopic(projectOf(root), task.changeId, task.id, run.phase, n)
+      const stored = truncateArtifact(answer, stop.transcriptPath)
+      await putArtifact(io, artifactKey, stored)
+      mirror.addArtifact(artifactKey, stored)
+      const after = await append(io, completionEvents(task, run, evaluation, artifactKey))
+      const updated = after.tasks[task.id]
+      if (updated !== undefined) {
+        await execute(io, ctx, updated, next(updated, { kind: 'completed', phase: run.phase, attempt: run.attempt, outcome: evaluation.outcome }))
+      }
+    })
+  } finally {
+    inFlight.delete(stop.agentId)
+  }
+}
+
+/** Subscribes completion to the agent-stop bus; called once from register.tsx. */
+export function installOrchestrator(ctx: Ctx): void {
+  onAgentStop((io, stop) => completePhase(io, ctx, stop))
 }

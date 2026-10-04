@@ -11,6 +11,7 @@ import type { Ctx } from './runtime/ctx.ts'
 import type { Io } from './runtime/io.ts'
 import { captureStop, captureTokens, touch } from './runtime/capture.ts'
 import { isolate } from './runtime/log-store.ts'
+import { installOrchestrator } from './runtime/orchestrator.ts'
 import type { UiState } from './runtime/ui-types.ts'
 import { DEFAULT_UI } from './runtime/ui-types.ts'
 import { boardAgent, boardArtifact, boardStatus, boardTask, registerReadTools } from './tools/board-read.ts'
@@ -80,6 +81,7 @@ export const register: Register = (on, options) => {
   const ctx: Ctx = { options }
   installEngramAllow(on)
   installAgentOffer(on)
+  installOrchestrator(ctx)
 
   // The engine allows one unmatched hook per event, so session.start setup lives here.
   on('session.start', async ($, e, next) => {

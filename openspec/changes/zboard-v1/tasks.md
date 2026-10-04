@@ -35,7 +35,7 @@
 - [x] 6.1 Add the state-backed log store, artifact store, hook error isolation (`ModError`) and the read tools `board_status`, `board_task`, `board_artifact`, `board_agent`; remove the Task 1.1 probe code
 - [x] 6.2 Add `/zboard` argument parsing with the open, `run <change>[/<label>]` and `pause` subcommands, and the orchestrator start: tick, pending phases, spawn with resolved model/effort, spawn deny to blocked, config warnings
 - [x] 6.3 Add engine capture: SubagentStart/SubagentStop runs, tool-call activity, `turn.complete` tokens, unknown agents ignored, and the agent-stop bus
-- [ ] 6.4 Add phase completion: gate evaluation on SubagentStop with touched-file snapshots and scoped ptest, artifacts, retry once, escalate, loop, duplicate-stop guard, per-task error isolation, pause semantics
+- [x] 6.4 Add phase completion: gate evaluation on SubagentStop with touched-file snapshots and scoped ptest, artifacts, retry once, escalate, loop, duplicate-stop guard, per-task error isolation, pause semantics
 - [ ] 6.5 Add task close: task-scoped commit, verified flip of the `tasks.md` line, failure to `needs_decision`, change completion
 - [ ] 6.6 Add native `TaskCreate`/`TaskUpdate` mirroring without altering the native result
 - [ ] 6.7 Add the allowed-file guard: read-only phase denies, tdd/code/refactor allow-lists with lexical and real-path placement, third deny escalates "plan too narrow"
