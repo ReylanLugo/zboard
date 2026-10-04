@@ -23,7 +23,7 @@ The system SHALL intercept native `TaskCreate` and `TaskUpdate` tool calls and m
 - **THEN** the mirrored task becomes `done`
 
 ### Requirement: Agent run tracking
-The system SHALL open an AgentRun on SubagentStart, update `lastActivityAt`, `currentTool`, and tokens on every tool call carrying that `agentId`, and close the run on SubagentStop recording `endedAt`, outcome, and `transcriptPath`.
+The system SHALL open an AgentRun on SubagentStart, update `lastActivityAt` and `currentTool` on every tool call carrying that `agentId`, add to its tokens whenever the engine reports usage for that agent (`turn.complete` with that `agentId`, because tool calls carry no usage), and close the run on SubagentStop recording `endedAt`, outcome, and `transcriptPath`.
 
 #### Scenario: Subagent stops
 - **WHEN** SubagentStop arrives for a tracked agent
@@ -38,7 +38,7 @@ The system SHALL deliver a task comment to the task's assigned agent: into the s
 
 #### Scenario: Comment to running agent
 - **WHEN** the user comments on a task whose implementer is running
-- **THEN** the implementer's next tool result carries the delimited note and the comment shows "delivered to board:implementer"
+- **THEN** the implementer's next tool result carries the delimited note and the comment shows "delivered to zboard:implementer"
 
 #### Scenario: Comment before spawn
 - **WHEN** a comment is added to a task whose next phase has not spawned

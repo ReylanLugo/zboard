@@ -42,7 +42,7 @@ The system SHALL show, for a selected task, acceptance criteria status, each pha
 
 #### Scenario: Delivered comment
 - **WHEN** a comment was delivered to the reviewer
-- **THEN** the thread shows "delivered to board:reviewer" under it
+- **THEN** the thread shows "delivered to zboard:reviewer" under it
 
 ### Requirement: Keyboard interaction
 The system SHALL support arrows to navigate, enter for detail, `c` comment, `b` block/unblock, `p` priority, `v` view, `f` filter by agent/status/section, and `esc` back, with no mouse dependency.

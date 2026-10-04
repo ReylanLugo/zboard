@@ -5,7 +5,7 @@ When one Claude Code session orchestrates many subagents through an OpenSpec pla
 ## What Changes
 
 - New Claude Code mod `zboard` (plugin of function hooks) with a pane rendered in the terminal and in the Desktop Code tab.
-- New deterministic per-task pipeline (research → plan → tdd → code → review → refactor loop) executed by mod-registered `board:*` subagents, with mechanical gates, scoped `ptest` runs, allowed-file enforcement, per-task commits, and `tasks.md` checkbox flips.
+- New deterministic per-task pipeline (research → plan → tdd → code → review → refactor loop) executed by mod-registered `zboard:*` subagents, with mechanical gates, scoped `ptest` runs, allowed-file enforcement, per-task commits, and `tasks.md` checkbox flips.
 - New task capture: zboard model-callable tools plus automatic mirroring of native `TaskCreate`/`TaskUpdate`; comments delivered to the assigned agent as delimited data.
 - New persistence split: OpenSpec `tasks.md` (structure, done-state), Engram (execution state, artifacts), `$.state` event log (session), `$.store` (UI prefs); recovery on `session.start` and `PostCompact`.
 - New read tools and actionable-only notices for the main Claude session.
