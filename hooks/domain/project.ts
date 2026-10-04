@@ -110,9 +110,84 @@ function applyTaskEvent(board: Board, e: DomainEvent): Board {
   }
 }
 
-/** Agent and phase events; extended in Task 2.2. */
-function applyAgentEvent(board: Board, _e: DomainEvent): Board {
-  return board
+const unique = (items: readonly string[]): string[] => [...new Set(items)]
+
+function mapRun(board: Board, agentId: string, change: (run: AgentRun) => AgentRun): Board {
+  const task = taskOfAgent(board, agentId)
+  if (task === undefined) return board
+  return withTask(board, { ...task, agents: task.agents.map(run => (run.agentId === agentId ? change(run) : run)) })
+}
+
+function startPhase(task: Task, e: EventOf<'PhaseStarted'>): Task {
+  const run: AgentRun = {
+    agentId: e.agentId,
+    agentType: e.agentType,
+    role: e.role,
+    phase: e.phase,
+    attempt: e.attempt,
+    taskId: task.id,
+    model: e.model,
+    effort: e.effort,
+    startedAt: e.at,
+    lastActivityAt: e.at,
+    tokens: 0,
+    denies: 0,
+    baseline: e.baseline,
+  }
+  return {
+    ...task,
+    status: e.phase === 'review' ? 'review' : 'running',
+    statusReason: undefined,
+    waitReason: undefined,
+    pending: undefined,
+    phase: e.phase,
+    loop: e.phase === 'refactor' && e.attempt === 1 ? task.loop + 1 : task.loop,
+    agents: [...task.agents, run],
+  }
+}
+
+function completePhase(task: Task, e: EventOf<'PhaseCompleted'>): Task {
+  const outcome = e.gate === 'pass' ? 'ok' as const : 'gate_failed' as const
+  const target = [...task.agents].reverse().find(run => run.phase === e.phase && run.attempt === e.attempt && run.outcome === undefined)
+  return {
+    ...task,
+    phases: [...task.phases, { phase: e.phase, attempt: e.attempt, loop: task.loop, gate: e.gate, reason: e.reason, summary: e.summary, artifactKey: e.artifactKey, at: e.at }],
+    allowedFiles: e.allowedFiles ?? task.allowedFiles,
+    testFiles: e.testFiles === undefined ? task.testFiles : unique([...task.testFiles, ...e.testFiles]),
+    touched: unique([...task.touched, ...(e.touched ?? [])]),
+    agents: task.agents.map(run => (run === target ? { ...run, outcome } : run)),
+  }
+}
+
+function applyAgentEvent(board: Board, e: DomainEvent): Board {
+  switch (e.type) {
+    case 'PhaseStarted':
+      return updateTask(board, e.taskId, task => startPhase(task, e))
+    case 'AgentActivity':
+      return mapRun(board, e.agentId, run => ({
+        ...run,
+        lastActivityAt: e.at,
+        currentTool: e.tool ?? run.currentTool,
+        tokens: run.tokens + (e.tokens ?? 0),
+      }))
+    case 'AgentStopped':
+      return mapRun(board, e.agentId, run => ({
+        ...run,
+        endedAt: e.at,
+        currentTool: undefined,
+        transcriptPath: e.transcriptPath ?? run.transcriptPath,
+        effort: e.effort ?? run.effort,
+        outcome: e.outcome === 'interrupted' ? 'interrupted' : (run.outcome ?? e.outcome),
+      }))
+    case 'PhaseCompleted':
+      return updateTask(board, e.taskId, task => completePhase(task, e))
+    case 'ReviewVerdictRecorded':
+      return updateTask(board, e.taskId, task => ({ ...task, verdict: e.verdict }))
+    case 'GuardDenied':
+      return mapRun(board, e.agentId, run => ({ ...run, denies: run.denies + 1 }))
+    default:
+      return board
+  }
 }
 
 const isForeignTaskEvent = (board: Board, e: DomainEvent): boolean =>
