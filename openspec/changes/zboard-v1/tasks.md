@@ -1,7 +1,7 @@
 ## 1. Scaffold and test harness
 
-- [ ] 1.1 Create branch `feat/zboard-v1`, the plugin manifest with userConfig pickers, `hooks/hooks.json`, `tsconfig.json`, `.gitignore` and a minimal `hooks/register.tsx`; run the harness spikes (import extensions, `session.start` in tests, native `$.state`, test filter) and `claude plugin validate`
-- [ ] 1.2 Add the in-memory test world (`hooks/testing/world.ts`) that answers fs, process, agents, tools, commands, panes, session, state and classic events beneath the plugin, with its self-test
+- [x] 1.1 Create branch `feat/zboard-v1`, the plugin manifest with userConfig pickers, `hooks/hooks.json`, `tsconfig.json`, `.gitignore` and a minimal `hooks/register.tsx`; run the harness spikes (import extensions, `session.start` in tests, native `$.state`, test filter) and `claude plugin validate`
+- [x] 1.2 Add the in-memory test world (`hooks/testing/world.ts`) that answers fs, process, agents, tools, commands, panes, session, state and classic events beneath the plugin, with its self-test
 
 ## 2. Domain model and event log
 
