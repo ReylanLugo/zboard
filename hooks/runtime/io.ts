@@ -1,4 +1,4 @@
-import type { EngineInterface, Timer, ToolCallResult } from 'claude-code'
+import type { AgentSpawnArgs, AgentSpawnResult, EngineInterface, Timer, ToolCallResult } from 'claude-code'
 
 /**
  * Ports the engine lends to adapters and handlers.
@@ -18,6 +18,11 @@ export interface Io {
   }
   readonly process: {
     readonly run: EngineInterface['process']['run']
+  }
+  readonly agent: {
+    readonly register: EngineInterface['agent']['register']
+    readonly spawn: (input: AgentSpawnArgs) => Promise<AgentSpawnResult>
+    readonly list: EngineInterface['agent']['list']
   }
   readonly tool: {
     readonly call: (input: { readonly tool: `mcp__${string}__${string}` } & Record<string, unknown>) => Promise<ToolCallResult>

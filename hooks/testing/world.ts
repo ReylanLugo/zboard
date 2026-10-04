@@ -1,5 +1,5 @@
 import { mock } from 'claude-code/testing'
-import type { AgentSpawnInput, FsStat, On, ProcessRunResult, ToolCallResult } from 'claude-code'
+import type { AgentInfo, AgentSpawnInput, AgentSpawnResult, FsStat, On, ProcessRunResult, ToolCallResult } from 'claude-code'
 import type { MockClock } from 'claude-code/testing'
 
 import type { Io } from '../runtime/io.ts'
@@ -218,6 +218,11 @@ export function worldIo(w: World): Io {
       stat: (path, options) => settle(fsStat(w, path, options?.resolve)),
     },
     process: { run: argv => settle(processRun(w, argv)) },
+    agent: {
+      register: async spec => agentRegister(w, spec) as Awaited<ReturnType<Io['agent']['register']>>,
+      spawn: async input => agentSpawn(w, input),
+      list: async () => agentList(w),
+    },
     tool: { call: input => settle(engramAnswer(w, input.tool, input)) },
     clock: {
       now: async () => w.clock.now(),
@@ -263,22 +268,29 @@ function ioClock(on: On, timers: IoTimer[]): MockClock {
   }
 }
 
+type SpawnArgs = { readonly prompt: string; readonly subagentType?: string; readonly model?: string }
+
+const agentSpawn = (w: World, e: SpawnArgs): AgentSpawnResult => {
+  if (w.spawnDeny !== undefined) return { deny: w.spawnDeny } as AgentSpawnResult
+  const agentId = `agent-${w.spawns.length + 1}`
+  w.spawns.push({ agentId, subagentType: e.subagentType ?? '', prompt: e.prompt, model: e.model })
+  w.alive.add(agentId)
+  return { model: e.model ?? 'inherit', agentId } as AgentSpawnResult
+}
+
+const agentList = (w: World): AgentInfo[] =>
+  [...w.alive].map(id => ({ id, description: '', type: 'zboard', status: 'running' }) as AgentInfo)
+
+const agentRegister = (w: World, spec: { readonly name: string }): { agent: string } => {
+  w.agentSpecs.set(spec.name, { ...spec })
+  return { agent: `zboard:${spec.name}` }
+}
+
 function installAgents(on: On, w: World): void {
-  on('agent.spawn', (_$, e) => {
-    if (w.spawnDeny !== undefined) return { deny: w.spawnDeny }
-    const agentId = `agent-${w.spawns.length + 1}`
-    w.spawns.push({ agentId, subagentType: e.subagentType, prompt: e.prompt, model: e.model })
-    w.alive.add(agentId)
-    return { model: e.model ?? 'inherit', agentId }
-  })
+  on('agent.spawn', (_$, e) => agentSpawn(w, e))
   on('agent.offer', () => ({ isOffered: true }))
-  on('agent.list', () => ({
-    value: [...w.alive].map(id => ({ id, description: '', type: 'zboard', status: 'running' as const })),
-  }))
-  on('agent.register', (_$, e) => {
-    w.agentSpecs.set(e.name, { ...e })
-    return { value: { agent: `zboard:${e.name}` } }
-  })
+  on('agent.list', () => ({ value: agentList(w) }))
+  on('agent.register', (_$, e) => ({ value: agentRegister(w, e) }))
 }
 
 function installRegistry(on: On, w: World): void {

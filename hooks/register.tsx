@@ -1,5 +1,6 @@
 import type { Register } from 'claude-code'
 
+import { installAgentOffer, registerAgentTypes } from './adapters/agents.ts'
 import { installEngramAllow } from './adapters/engram.ts'
 import { PLUGIN } from './runtime/ctx.ts'
 
@@ -7,7 +8,10 @@ const probe = { plugin: 'zboard', key: 'probe' } as const
 
 export const register: Register = on => {
   installEngramAllow(on)
+  installAgentOffer(on)
+  // The engine allows one unmatched hook per event, so session.start setup lives here.
   on('session.start', async ($, e, next) => {
+    await registerAgentTypes({ agent: { register: spec => $.agent.register(spec) } })
     await $.command.register({
       name: 'zboard',
       description: 'Open the zboard task board',
