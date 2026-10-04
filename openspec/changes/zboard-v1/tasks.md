@@ -66,4 +66,4 @@
 ## 11. Integration, security and docs
 
 - [x] 11.1 Complete `register.tsx` wiring and add the end-to-end pipeline and Review Focus integration tests
-- [ ] 11.2 Write the README, then run `claude plugin validate`, the type check and the full `claude plugin test` suite
+- [x] 11.2 Write the README, then run `claude plugin validate`, the type check and the full `claude plugin test` suite
