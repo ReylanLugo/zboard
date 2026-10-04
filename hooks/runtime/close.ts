@@ -20,9 +20,15 @@ export async function finishIfComplete(io: Io): Promise<void> {
   }
 }
 
+/** Touched paths the plan never authorized (a failed attempt's changes are recorded too). */
+const outOfScope = (task: Task): string[] =>
+  task.touched.filter(path => !task.allowedFiles.includes(path) && !task.testFiles.includes(path))
+
 export async function closeTask(io: Io, task: Task): Promise<void> {
   const paths = [...task.touched]
   if (paths.length === 0) return needsDecision(io, task, 'nothing to commit: the task touched no files')
+  const extra = outOfScope(task)
+  if (extra.length > 0) return needsDecision(io, task, `not committed: touched files outside the task's scope: ${extra.join(', ')}`)
   const committed = await commitTask(io, {
     cwd: await io.session.root(),
     paths,
