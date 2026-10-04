@@ -28,7 +28,7 @@
 - [x] 5.5 Add the Engram adapter: topic keys, artifact truncation, debounced mirror with rev/updatedAt and pending flag, topic fetch (read-format spike) and the `tool.check` allow for zboard's own Engram calls
 - [x] 5.6 Add model/effort configuration: model table, defaults, three-level precedence with sources, invalid-value fallback, malformed project config, auto-escalation
 - [x] 5.7 Add the agents adapter and prompts: six `zboard:*` types, hidden from the model via `agent.offer`, per-role serialized re-register-then-spawn with model and effort (effort spike), phase prompts
-- [ ] 5.8 Add the ODD adapter: feature-name validation, ODD document parsing with unparsed lines, OpenSpec change generation and preview text
+- [x] 5.8 Add the ODD adapter: feature-name validation, ODD document parsing with unparsed lines, OpenSpec change generation and preview text
 
 ## 6. Runtime
 
