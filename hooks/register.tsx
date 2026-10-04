@@ -9,6 +9,7 @@ import type { LogState } from './domain/log.ts'
 import { EMPTY_LOG } from './domain/log.ts'
 import type { Ctx } from './runtime/ctx.ts'
 import type { Io } from './runtime/io.ts'
+import { captureStop, captureTokens, touch } from './runtime/capture.ts'
 import { isolate } from './runtime/log-store.ts'
 import type { UiState } from './runtime/ui-types.ts'
 import { DEFAULT_UI } from './runtime/ui-types.ts'
@@ -111,5 +112,30 @@ export const register: Register = (on, options) => {
     const io = ioOf($)
     const text = await isolate(io, 'command.zboard', () => dispatch(io, ctx, parseArgs(e.args)), 'zboard: the command failed; see the board header.')
     return { text }
+  })
+
+  // Engine capture (runtime/capture.ts): the engine's own result always passes through.
+  on('classic.SubagentStart', async ($, e, next) => {
+    const result = await next(e)
+    const io = ioOf($)
+    await isolate(io, 'classic.SubagentStart', () => touch(io, e.agent_id), undefined)
+    return result
+  })
+  on('classic.SubagentStop', async ($, e, next) => {
+    const result = await next(e)
+    const io = ioOf($)
+    const stop = { agentId: e.agent_id, transcriptPath: e.agent_transcript_path, answer: e.last_assistant_message, effort: e.effort?.level }
+    await isolate(io, 'classic.SubagentStop', () => captureStop(io, stop), undefined)
+    return result
+  })
+  on('tool.call', async ($, e, next) => {
+    const io = ioOf($)
+    if (e.agentId !== undefined) await isolate(io, 'capture.tool.call', () => touch(io, e.agentId as string, e.tool), undefined)
+    return next(e)
+  })
+  on('turn.complete', async ($, e, next) => {
+    const io = ioOf($)
+    await isolate(io, 'capture.turn.complete', () => captureTokens(io, e.agentId, e.usage), undefined)
+    return next(e)
   })
 }
