@@ -7,6 +7,7 @@ import type { Els, ViewProps } from './els.ts'
 import { filterLabel, visibleTasks } from './filter.ts'
 import { headerLine } from './format.ts'
 import { KanbanView } from './KanbanView.tsx'
+import { SwimlaneView } from './SwimlaneView.tsx'
 
 const EMPTY_HINT = 'No change loaded. Run /zboard run <change> to start.'
 const CARD_PREFIX = 'card:'
@@ -29,6 +30,8 @@ function Body(els: Els, io: Io, props: ViewProps): RenderElement {
   if (props.board.changeId === null) return <Box key="empty"><Text dimColor>{EMPTY_HINT}</Text></Box>
   const tasks = visibleTasks(props.board, props.ui.filter)
   switch (props.ui.view) {
+    case 'swimlane':
+      return SwimlaneView(els, io, tasks, props)
     default:
       return KanbanView(els, io, tasks, props)
   }
