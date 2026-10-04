@@ -11,7 +11,7 @@
 
 ## 3. Phase gates and pipeline state machine
 
-- [ ] 3.1 Add JSON artifact extraction, repo-path normalization and the research, plan and review gates
+- [x] 3.1 Add JSON artifact extraction, repo-path normalization and the research, plan and review gates
 - [ ] 3.2 Add the tdd, code/refactor (green) and read-only touched-files gates over ptest results and touched paths
 - [ ] 3.3 Add the pure `pipeline.next(task, input)` returning advance, spawn (retry), loop, escalate or done, with the review loop cap of 3
 
