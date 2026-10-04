@@ -1,0 +1,22 @@
+{
+  "name": "zboard",
+  "version": "0.1.0",
+  "description": "Kanban board and deterministic per-task pipeline for OpenSpec changes inside Claude Code.",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "researcherModel": { "type": "string", "title": "Researcher model", "description": "Model for zboard:researcher", "default": "sonnet 5.5", "options": ["opus 5.5", "sonnet 5.5", "haiku 4.5"] },
+    "researcherEffort": { "type": "string", "title": "Researcher effort", "description": "Effort for zboard:researcher", "default": "medium", "options": ["low", "medium", "high", "xhigh", "max"] },
+    "plannerModel": { "type": "string", "title": "Planner model", "description": "Model for zboard:planner", "default": "opus 5.5", "options": ["opus 5.5", "sonnet 5.5", "haiku 4.5"] },
+    "plannerEffort": { "type": "string", "title": "Planner effort", "description": "Effort for zboard:planner", "default": "xhigh", "options": ["low", "medium", "high", "xhigh", "max"] },
+    "tddModel": { "type": "string", "title": "TDD model", "description": "Model for zboard:tdd", "default": "sonnet 5.5", "options": ["opus 5.5", "sonnet 5.5", "haiku 4.5"] },
+    "tddEffort": { "type": "string", "title": "TDD effort", "description": "Effort for zboard:tdd", "default": "low", "options": ["low", "medium", "high", "xhigh", "max"] },
+    "implementerModel": { "type": "string", "title": "Implementer model", "description": "Model for zboard:implementer", "default": "sonnet 5.5", "options": ["opus 5.5", "sonnet 5.5", "haiku 4.5"] },
+    "implementerEffort": { "type": "string", "title": "Implementer effort", "description": "Effort for zboard:implementer", "default": "medium", "options": ["low", "medium", "high", "xhigh", "max"] },
+    "reviewerModel": { "type": "string", "title": "Reviewer model", "description": "Model for zboard:reviewer", "default": "opus 5.5", "options": ["opus 5.5", "sonnet 5.5", "haiku 4.5"] },
+    "reviewerEffort": { "type": "string", "title": "Reviewer effort", "description": "Effort for zboard:reviewer", "default": "high", "options": ["low", "medium", "high", "xhigh", "max"] },
+    "refactorerModel": { "type": "string", "title": "Refactorer model", "description": "Model for zboard:refactorer", "default": "sonnet 5.5", "options": ["opus 5.5", "sonnet 5.5", "haiku 4.5"] },
+    "refactorerEffort": { "type": "string", "title": "Refactorer effort", "description": "Effort for zboard:refactorer", "default": "medium", "options": ["low", "medium", "high", "xhigh", "max"] },
+    "autoEscalate": { "type": "boolean", "title": "Auto-escalate refactorer", "description": "Raise the refactorer effort one step on review loop 3", "default": false },
+    "concurrency": { "type": "number", "title": "Concurrent tasks", "description": "How many tasks run at once", "default": 3 }
+  }
+}
