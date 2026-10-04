@@ -21,8 +21,8 @@ test('world: Engram saves upsert by topic and are searchable by id', async ($, o
 
 test('world: spawn mints agent ids and honours spawnDeny', async ($, on) => {
   const w = installWorld(on)
-  const first = await $.agent.spawn(spawnInput('p', 'zboard:researcher'))
-  expect(first.agentId).toBe('agent-1')
+  await $.agent.spawn(spawnInput('p', 'zboard:researcher'))
+  expect(w.spawns[0]?.agentId).toBe('agent-1')
   w.spawnDeny = 'no agents today'
   const second = await $.agent.spawn(spawnInput('p', 'zboard:planner'))
   expect(second.deny).toBe('no agents today')

@@ -46,7 +46,14 @@ export interface Io {
     readonly ui: StatePort<UiState>
     readonly artifacts: StatePort<Readonly<Record<string, string>>>
   }
+  readonly command: {
+    readonly register: EngineInterface['command']['register']
+  }
+  readonly session: {
+    readonly root: () => Promise<string>
+  }
   readonly ui: {
+    readonly open: EngineInterface['ui']['open']
     /** Redraws every surface reading zboard's state. */
     readonly invalidate: () => void
     /** Writes a line to the debug log. */

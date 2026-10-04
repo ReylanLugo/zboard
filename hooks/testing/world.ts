@@ -249,7 +249,18 @@ export function worldIo(w: World): Io {
       ui: memoryPort(w, 'ui', DEFAULT_UI),
       artifacts: memoryPort<Readonly<Record<string, string>>>(w, 'artifacts', {}),
     },
-    ui: { invalidate: () => undefined, debug: text => { w.debug.push(text) } },
+    command: {
+      register: async spec => {
+        w.commands.push(spec.name)
+        return { command: spec.name } as Awaited<ReturnType<Io['command']['register']>>
+      },
+    },
+    session: { root: async () => ROOT },
+    ui: {
+      open: async pane => paneOpen(w, pane.id) as Awaited<ReturnType<Io['ui']['open']>>,
+      invalidate: () => undefined,
+      debug: text => { w.debug.push(text) },
+    },
   }
 }
 
@@ -298,12 +309,13 @@ function ioClock(on: On, timers: IoTimer[]): MockClock {
   }
 }
 
-type SpawnArgs = { readonly prompt: string; readonly subagentType?: string; readonly model?: string }
+/** The kit hands the hook beneath the Agent tool's raw parameters (`subagent_type`); direct test calls use `subagentType`. */
+type SpawnArgs = { readonly prompt: string; readonly subagentType?: string; readonly subagent_type?: string; readonly model?: string }
 
 const agentSpawn = (w: World, e: SpawnArgs): AgentSpawnResult => {
   if (w.spawnDeny !== undefined) return { deny: w.spawnDeny } as AgentSpawnResult
   const agentId = `agent-${w.spawns.length + 1}`
-  w.spawns.push({ agentId, subagentType: e.subagentType ?? '', prompt: e.prompt, model: e.model })
+  w.spawns.push({ agentId, subagentType: e.subagentType ?? e.subagent_type ?? '', prompt: e.prompt, model: e.model })
   w.alive.add(agentId)
   return { model: e.model ?? 'inherit', agentId } as AgentSpawnResult
 }
@@ -317,7 +329,11 @@ const agentRegister = (w: World, spec: { readonly name: string }): { agent: stri
 }
 
 function installAgents(on: On, w: World): void {
-  on('agent.spawn', (_$, e) => agentSpawn(w, e))
+  // Beneath a plugin's $.agent.spawn the kit runs the Agent tool, whose result carries the agent id.
+  on('agent.spawn', (_$, e) => {
+    const spawned = agentSpawn(w, e)
+    return spawned.deny !== undefined ? spawned : ({ result: { agentId: spawned.agentId, resolvedModel: spawned.model }, model: spawned.model } as never)
+  })
   on('agent.offer', () => ({ isOffered: true }))
   on('agent.list', () => ({ value: agentList(w) }))
   on('agent.register', (_$, e) => ({ value: agentRegister(w, e) }))
@@ -336,12 +352,7 @@ function installRegistry(on: On, w: World): void {
 }
 
 function installUi(on: On, w: World): void {
-  on('ui.open', (_$, e) => {
-    w.opened.push(e.id)
-    return w.placePanes
-      ? { value: { isPlaced: true as const } }
-      : { value: { isPlaced: false as const, reason: 'unasked panes seat from 144 columns; the terminal is 100' } }
-  })
+  on('ui.open', (_$, e) => ({ value: paneOpen(w, e.id) }))
   on('ui.close', () => ({ value: undefined }))
   on('ui.panes', () => ({ value: [] }))
   on('ui.toast', (_$, e) => {
@@ -441,3 +452,10 @@ function installFakeState(on: On): void {
 /** A complete `agent.spawn` input for the kit's engine (fields the engine stamps get neutral values). */
 export const spawnInput = (prompt: string, subagentType: string): AgentSpawnInput =>
   ({ tool_use_id: 'test', prompt, description: subagentType, subagentType, provider: { plugin: 'test' }, parentModel: 'test', background: true }) as AgentSpawnInput
+
+function paneOpen(w: World, id: string): { isPlaced: true } | { isPlaced: false; reason: string } {
+  w.opened.push(id)
+  return w.placePanes
+    ? { isPlaced: true }
+    : { isPlaced: false, reason: 'unasked panes seat from 144 columns; the terminal is 100' }
+}
