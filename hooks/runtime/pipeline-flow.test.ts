@@ -87,3 +87,18 @@ test('artifacts are stored, truncated past 50,000 characters, and readable with 
   expect(text).toMatch(/\[zboard: truncated \d+ of \d+ characters\] transcript: \/t\/agent-1\.jsonl$/)
   expect(await agentOf($, 'agent-1')).toMatchObject({ transcriptPath: '/t/agent-1.jsonl', outcome: 'ok' })
 })
+
+test('a phase evaluation that throws needs a decision and frees its slot for the next task', async ($, on) => {
+  const w = installWorld(on)
+  setupDemo(w, '## 1. Core\n\n- [ ] 1.1 A\n- [ ] 1.2 B\n- [ ] 1.3 C\n- [ ] 1.4 D\n')
+  await boot($)
+  await zboard($, 'run demo')
+  expect(w.spawns).toHaveLength(3)
+  w.rules.unshift({ match: argvIs('git', 'status'), once: true, answer: { exitCode: 128, stderr: 'fatal: index.lock exists\n' } })
+  await stopAgent($, 'agent-1', ANSWERS.research)
+  expect(await taskOf($, '1.1')).toMatchObject({
+    status: 'needs_decision', statusReason: 'research evaluation failed: git status failed: fatal: index.lock exists',
+  })
+  expect(w.spawns.at(-1)?.prompt).toContain('Task 1.4: D')
+  expect((await status($)).errors).toHaveLength(1)
+})

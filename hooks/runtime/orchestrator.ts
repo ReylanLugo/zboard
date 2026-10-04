@@ -13,7 +13,7 @@ import { next } from '../domain/pipeline.ts'
 import { formatComment, undelivered } from '../domain/comments.ts'
 import { activeRun, runOf, taskOfAgent } from '../domain/project.ts'
 import { runnable, waitReason, writeConflict } from '../domain/scheduler.ts'
-import type { AgentRun, PendingPhase, Phase, Task, TaskStatus } from '../domain/types.ts'
+import type { AgentRun, Board, PendingPhase, Phase, Task, TaskStatus } from '../domain/types.ts'
 import { PHASES, ROLE_OF, WRITE_PHASES, agentTypeOf } from '../domain/types.ts'
 import type { AgentStop } from './bus.ts'
 import { onAgentStop } from './bus.ts'
@@ -22,7 +22,7 @@ import type { Ctx } from './ctx.ts'
 import { concurrencyOf } from './ctx.ts'
 import type { Evaluation } from './evaluate.ts'
 import { evaluateStop } from './evaluate.ts'
-import { append, getArtifact, isolateTask, putArtifact, readBoard } from './log-store.ts'
+import { append, getArtifact, isolateTask, message, putArtifact, readBoard, recordModError } from './log-store.ts'
 
 export interface RunScope {
   readonly changeId: string
@@ -192,6 +192,38 @@ export async function proceed(io: Io, ctx: Ctx, taskId: string, action: Action):
 
 const inFlight = new Set<string>()
 
+async function finishPhase(io: Io, ctx: Ctx, board: Board, task: Task, run: AgentRun, stop: AgentStop): Promise<void> {
+  const root = await io.session.root()
+  const answer = stop.answer ?? ''
+  const evaluation = await evaluateStop(io, board, task, run, answer, root)
+  const n = task.phases.filter(record => record.phase === run.phase).length + 1
+  const artifactKey = phaseTopic(projectOf(root), task.changeId, task.id, run.phase, n)
+  const stored = truncateArtifact(answer, stop.transcriptPath)
+  await putArtifact(io, artifactKey, stored)
+  mirror.addArtifact(artifactKey, stored)
+  const after = await append(io, completionEvents(task, run, evaluation, artifactKey))
+  const updated = after.tasks[task.id]
+  if (updated !== undefined) {
+    await proceed(io, ctx, task.id, next(updated, { kind: 'completed', phase: run.phase, attempt: run.attempt, outcome: evaluation.outcome }))
+  }
+}
+
+/**
+ * A phase whose evaluation threw must not leave its task "running" with an ended
+ * run, holding a concurrency slot forever: it needs a decision, and others proceed.
+ */
+async function failPhase(io: Io, ctx: Ctx, taskId: string, phase: Phase, error: unknown): Promise<void> {
+  await recordModError(io, 'orchestrator.complete', error, taskId)
+  await isolateTask(io, 'orchestrator.complete', taskId, async () => {
+    const task = (await readBoard(io)).tasks[taskId]
+    if (task !== undefined && IN_PIPELINE.includes(task.status) && activeRun(task) === undefined) {
+      const reason = `${phase} evaluation failed: ${message(error)}`
+      await append(io, [{ type: 'TaskStatusChanged', taskId, from: task.status, to: 'needs_decision', reason }])
+    }
+    await tick(io, ctx)
+  })
+}
+
 /** Claimed synchronously, before any await, so a concurrent duplicate stop sees the claim. */
 async function completePhase(io: Io, ctx: Ctx, stop: AgentStop): Promise<void> {
   if (inFlight.has(stop.agentId)) return
@@ -202,21 +234,11 @@ async function completePhase(io: Io, ctx: Ctx, stop: AgentStop): Promise<void> {
     const run = task === undefined ? undefined : runOf(task, stop.agentId)
     if (task === undefined || run === undefined || run.outcome !== undefined) return
     if (task.status !== 'running' && task.status !== 'review') return
-    await isolateTask(io, 'orchestrator.complete', task.id, async () => {
-      const root = await io.session.root()
-      const answer = stop.answer ?? ''
-      const evaluation = await evaluateStop(io, board, task, run, answer, root)
-      const n = task.phases.filter(record => record.phase === run.phase).length + 1
-      const artifactKey = phaseTopic(projectOf(root), task.changeId, task.id, run.phase, n)
-      const stored = truncateArtifact(answer, stop.transcriptPath)
-      await putArtifact(io, artifactKey, stored)
-      mirror.addArtifact(artifactKey, stored)
-      const after = await append(io, completionEvents(task, run, evaluation, artifactKey))
-      const updated = after.tasks[task.id]
-      if (updated !== undefined) {
-        await proceed(io, ctx, task.id, next(updated, { kind: 'completed', phase: run.phase, attempt: run.attempt, outcome: evaluation.outcome }))
-      }
-    })
+    try {
+      await finishPhase(io, ctx, board, task, run, stop)
+    } catch (error) {
+      await failPhase(io, ctx, task.id, run.phase, error)
+    }
   } finally {
     inFlight.delete(stop.agentId)
   }
