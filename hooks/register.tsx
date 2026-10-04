@@ -6,7 +6,7 @@ import { parseArgs } from './commands/args.ts'
 import { dispatch, registerCommand } from './commands/zboard.ts'
 import { installEngramAllow } from './adapters/engram.ts'
 import type { LogState } from './domain/log.ts'
-import { EMPTY_LOG } from './domain/log.ts'
+import { EMPTY_LOG, boardOf } from './domain/log.ts'
 import type { Ctx } from './runtime/ctx.ts'
 import type { Io } from './runtime/io.ts'
 import { captureStop, captureTokens, touch } from './runtime/capture.ts'
@@ -16,6 +16,7 @@ import { append, isolate, readBoard } from './runtime/log-store.ts'
 import { mirrorCreated, mirrorUpdated } from './runtime/native.ts'
 import { installNotify } from './runtime/notify.ts'
 import { installOrchestrator } from './runtime/orchestrator.ts'
+import { focusCard, renderPane } from './ui/Pane.tsx'
 import { applyStoredPrefs } from './ui/prefs.ts'
 import { flushMirror, installMirrorWiring, recover } from './runtime/recovery.ts'
 import { fileChanged, startPolling, watchPathsFor } from './runtime/watcher.ts'
@@ -245,5 +246,18 @@ export const register: Register = (on, options) => {
     const io = ioOf($)
     await isolate(io, 'native.TaskUpdate', () => mirrorUpdated(io, ran, e.taskId, e), undefined)
     return ran
+  })
+
+  // The board pane (ui/Pane.tsx). Reading the atoms here subscribes the drawing to them.
+  on('ui.render', { component: 'Pane', requestId: 'zboard' }, async ($, e) => {
+    const board = boardOf((await read($, logAtom)) as LogState)
+    const ui = (await read($, uiAtom)) as UiState
+    const now = await $.clock.now()
+    return renderPane($.ui.resolve(e), e.surface, ioOf($), { board, ui, now, columns: e.props.bodyColumns })
+  })
+  on('ui.focus', async ($, e, next) => {
+    const io = ioOf($)
+    await isolate(io, 'ui.focus', () => focusCard(io, e.requestId, e.element), undefined)
+    return next(e)
   })
 }

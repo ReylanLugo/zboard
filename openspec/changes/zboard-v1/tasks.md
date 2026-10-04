@@ -59,7 +59,7 @@
 
 ## 10. Views
 
-- [ ] 10.1 Add the pane render, header, empty state, Kanban view and the keyboard toolbar (comment input, block, priority, view cycle, filter cycle) on terminal and desktop
+- [x] 10.1 Add the pane render, header, empty state, Kanban view and the keyboard toolbar (comment input, block, priority, view cycle, filter cycle) on terminal and desktop
 - [ ] 10.2 Add the Swimlane view by agent with heartbeats and the queue with wait reasons
 - [ ] 10.3 Add the Tree view and the task detail pane (acceptance, phases with gates, run timeline, comment thread, `a` full artifact, Esc back)
 
