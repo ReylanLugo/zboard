@@ -11,6 +11,7 @@ import type { Ctx } from './runtime/ctx.ts'
 import type { Io } from './runtime/io.ts'
 import { captureStop, captureTokens, touch } from './runtime/capture.ts'
 import { isolate } from './runtime/log-store.ts'
+import { mirrorCreated, mirrorUpdated } from './runtime/native.ts'
 import { installOrchestrator } from './runtime/orchestrator.ts'
 import type { UiState } from './runtime/ui-types.ts'
 import { DEFAULT_UI } from './runtime/ui-types.ts'
@@ -139,5 +140,19 @@ export const register: Register = (on, options) => {
     const io = ioOf($)
     await isolate(io, 'capture.turn.complete', () => captureTokens(io, e.agentId, e.usage), undefined)
     return next(e)
+  })
+
+  // Native task mirroring (runtime/native.ts): the native result is what the model sees.
+  on('tool.call', { tool: 'TaskCreate' }, async ($, e, next) => {
+    const ran = await next(e)
+    const io = ioOf($)
+    await isolate(io, 'native.TaskCreate', () => mirrorCreated(io, ran, e), undefined)
+    return ran
+  })
+  on('tool.call', { tool: 'TaskUpdate' }, async ($, e, next) => {
+    const ran = await next(e)
+    const io = ioOf($)
+    await isolate(io, 'native.TaskUpdate', () => mirrorUpdated(io, ran, e.taskId, e), undefined)
+    return ran
   })
 }
