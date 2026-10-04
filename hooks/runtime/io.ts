@@ -53,9 +53,11 @@ export interface Io {
   readonly session: {
     readonly root: () => Promise<string>
     readonly messages: (query: SessionMessagesAgentArgs) => Promise<SessionMessagesResult>
+    readonly append: EngineInterface['session']['append']
   }
   readonly ui: {
     readonly open: EngineInterface['ui']['open']
+    readonly toast: (text: string) => void
     /** Redraws every surface reading zboard's state. */
     readonly invalidate: () => void
     /** Writes a line to the debug log. */

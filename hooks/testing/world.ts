@@ -264,9 +264,17 @@ export function worldIo(w: World): Io {
         return { command: spec.name } as Awaited<ReturnType<Io['command']['register']>>
       },
     },
-    session: { root: async () => ROOT, messages: async () => [] as unknown as SessionMessagesResult },
+    session: {
+      root: async () => ROOT,
+      messages: async () => [] as unknown as SessionMessagesResult,
+      append: async args => {
+        w.appended.push(args.message.content.map(block => (typeof block.text === 'string' ? block.text : '')).join(''))
+        return { message: args.message, uuid: `u-` } as unknown as Awaited<ReturnType<Io['session']['append']>>
+      },
+    },
     ui: {
       open: async pane => paneOpen(w, pane.id) as Awaited<ReturnType<Io['ui']['open']>>,
+      toast: text => { w.toasts.push(text) },
       invalidate: () => undefined,
       debug: text => { w.debug.push(text) },
     },
@@ -369,7 +377,10 @@ function installUi(on: On, w: World): void {
     return { value: undefined }
   })
   on('ui.status', () => ({ value: undefined }))
-  on('ui.log', () => ({ value: undefined }))
+  on('ui.log', (_$, e) => {
+    w.debug.push(String(e.text))
+    return { value: undefined }
+  })
   on('ui.invalidate', () => ({ value: undefined }))
   on('ui.notice', () => ({ value: undefined }))
 }

@@ -14,6 +14,7 @@ import { guardWrite } from './runtime/guard.ts'
 import { noteFor } from './runtime/inject.ts'
 import { append, isolate, readBoard } from './runtime/log-store.ts'
 import { mirrorCreated, mirrorUpdated } from './runtime/native.ts'
+import { installNotify } from './runtime/notify.ts'
 import { installOrchestrator } from './runtime/orchestrator.ts'
 import { flushMirror, installMirrorWiring, recover } from './runtime/recovery.ts'
 import { fileChanged, startPolling, watchPathsFor } from './runtime/watcher.ts'
@@ -75,9 +76,14 @@ function ioOf($: EngineInterface): Io {
       },
     },
     command: { register: spec => $.command.register(spec) },
-    session: { root: () => $.session.root(), messages: query => $.session.messages(query) },
+    session: {
+      root: () => $.session.root(),
+      messages: query => $.session.messages(query),
+      append: args => $.session.append(args),
+    },
     ui: {
       open: request => $.ui.open(request),
+      toast: text => $.ui.toast(text),
       invalidate: () => $.ui.invalidate('ui.render'),
       debug: text => $.ui.log(text, { to: 'debug' }),
     },
@@ -105,6 +111,7 @@ export const register: Register = (on, options) => {
   installAgentOffer(on)
   installOrchestrator(ctx)
   installMirrorWiring()
+  installNotify()
 
   // The engine allows one unmatched hook per event, so session.start setup lives here:
   // registrations, then (once the session started) tasks.md polling and recovery.
