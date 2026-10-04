@@ -5,6 +5,7 @@ import { pauseRun, startRun } from '../runtime/orchestrator.ts'
 import type { ZboardCommand } from './args.ts'
 import { USAGE } from './args.ts'
 import { setOverride, showConfig } from './config-view.ts'
+import { importOdd } from './import-odd.ts'
 
 export async function registerCommand(io: Io): Promise<void> {
   await io.command.register({
@@ -35,6 +36,8 @@ export async function dispatch(io: Io, ctx: Ctx, command: ZboardCommand): Promis
       return setOverride(io, command)
     case 'config':
       return showConfig(io, ctx)
+    case 'import-odd':
+      return importOdd(io, command.feature, command.confirm)
     case 'error':
       return `zboard: ${command.message}`
     default:
