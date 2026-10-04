@@ -15,6 +15,9 @@ const MOVABLE: Readonly<Record<TaskSource, readonly TaskStatus[]>> = {
   board: ['backlog', 'ready', 'running', 'blocked', 'done'],
 }
 
+/** An openspec task in these statuses has a phase in flight; moving it would race the pipeline. */
+const IN_PIPELINE: readonly TaskStatus[] = ['running', 'review']
+
 export function createTask(board: Board, change: string, title: string, section?: string, description?: string): Outcome {
   if (board.changeId !== null && board.changeId !== change) return failed(`change ${change} is not loaded (the board shows ${board.changeId})`)
   const count = Object.values(board.tasks).filter(task => task.source === 'board').length
@@ -50,6 +53,9 @@ export function moveTask(board: Board, taskId: string, to: string): Outcome {
   if (task === undefined) return failed(`unknown task id: ${taskId}`)
   if (!(TASK_STATUSES as readonly string[]).includes(to)) return failed(`unknown status: ${to}`)
   const status = to as TaskStatus
+  if (task.source === 'openspec' && IN_PIPELINE.includes(task.status)) {
+    return failed(`task ${taskId} is ${task.status}; the pipeline owns it until its phase ends`)
+  }
   if (!MOVABLE[task.source].includes(status)) {
     return failed(task.source === 'openspec'
       ? 'an openspec task can only move to ready or blocked; done comes from the pipeline'

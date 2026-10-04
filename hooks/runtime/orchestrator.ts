@@ -13,7 +13,7 @@ import { next } from '../domain/pipeline.ts'
 import { formatComment, undelivered } from '../domain/comments.ts'
 import { activeRun, runOf, taskOfAgent } from '../domain/project.ts'
 import { runnable, waitReason, writeConflict } from '../domain/scheduler.ts'
-import type { AgentRun, PendingPhase, Phase, Task } from '../domain/types.ts'
+import type { AgentRun, PendingPhase, Phase, Task, TaskStatus } from '../domain/types.ts'
 import { PHASES, ROLE_OF, WRITE_PHASES, agentTypeOf } from '../domain/types.ts'
 import type { AgentStop } from './bus.ts'
 import { onAgentStop } from './bus.ts'
@@ -82,10 +82,13 @@ export async function setPending(io: Io, ctx: Ctx, taskId: string, pending: Pend
   await tick(io, ctx)
 }
 
+/** A pending phase starts a ready task or continues one the pipeline owns; never a moved one. */
+const LAUNCHABLE: readonly TaskStatus[] = ['ready', 'running', 'review']
+
 async function launchPending(io: Io, ctx: Ctx, id: string): Promise<void> {
   const board = await readBoard(io)
   const task = board.tasks[id]
-  if (task?.pending === undefined || activeRun(task) !== undefined) return
+  if (task?.pending === undefined || activeRun(task) !== undefined || !LAUNCHABLE.includes(task.status)) return
   if (WRITE_PHASES.includes(task.pending.phase)) {
     const conflict = writeConflict(board, id)
     if (conflict !== undefined) {
@@ -174,6 +177,19 @@ async function execute(io: Io, ctx: Ctx, task: Task, action: Action): Promise<vo
   }
 }
 
+/** Statuses in which the pipeline still owns a task. */
+const IN_PIPELINE: readonly TaskStatus[] = ['running', 'review']
+
+/**
+ * Runs the pipeline's next action, re-reading the task first: a long evaluation
+ * may end after the task left the pipeline, and then nothing more happens to it.
+ */
+export async function proceed(io: Io, ctx: Ctx, taskId: string, action: Action): Promise<void> {
+  const task = (await readBoard(io)).tasks[taskId]
+  if (task === undefined || !IN_PIPELINE.includes(task.status)) return
+  await execute(io, ctx, task, action)
+}
+
 const inFlight = new Set<string>()
 
 /** Claimed synchronously, before any await, so a concurrent duplicate stop sees the claim. */
@@ -198,7 +214,7 @@ async function completePhase(io: Io, ctx: Ctx, stop: AgentStop): Promise<void> {
       const after = await append(io, completionEvents(task, run, evaluation, artifactKey))
       const updated = after.tasks[task.id]
       if (updated !== undefined) {
-        await execute(io, ctx, updated, next(updated, { kind: 'completed', phase: run.phase, attempt: run.attempt, outcome: evaluation.outcome }))
+        await proceed(io, ctx, task.id, next(updated, { kind: 'completed', phase: run.phase, attempt: run.attempt, outcome: evaluation.outcome }))
       }
     })
   } finally {

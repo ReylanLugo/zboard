@@ -40,3 +40,10 @@ test('raisePriority adds one; moveTask and assignTask validate their inputs', ()
   expect(assignTask(board, '1.1', 'wizard')).toEqual({ ok: false, error: 'unknown agent: wizard' })
   expect(assignTask(board, '1.1', 'reviewer')).toEqual({ ok: true, events: [{ type: 'TaskUpdated', taskId: '1.1', patch: { assignee: 'zboard:reviewer' } }] })
 })
+
+test('moveTask refuses an openspec task the pipeline is running or reviewing', () => {
+  expect(moveTask(board, '1.2', 'blocked')).toEqual({ ok: false, error: 'task 1.2 is running; the pipeline owns it until its phase ends' })
+  expect(moveTask(board, '1.2', 'ready')).toEqual({ ok: false, error: 'task 1.2 is running; the pipeline owns it until its phase ends' })
+  const reviewing = project(evs([loaded(parsed('1.1')), { type: 'TaskStatusChanged', taskId: '1.1', from: 'ready', to: 'review' }]))
+  expect(moveTask(reviewing, '1.1', 'blocked')).toEqual({ ok: false, error: 'task 1.1 is review; the pipeline owns it until its phase ends' })
+})
