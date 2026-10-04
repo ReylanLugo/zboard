@@ -58,3 +58,17 @@ test('a commit whose content differs from the task files is reported', async ($,
   w.rules.push({ match: argvIs('git', 'show'), answer: { stdout: 'f00d\n\nsrc/a.ts\nsrc/unrelated.ts\ntests/a.test.ts\n' } })
   expect(await ((($: Io) => commitTask($, request)))(worldIo(w))).toEqual({ ok: false, reason: "commit content differs from the task's files: src/a.ts, src/unrelated.ts, tests/a.test.ts" })
 })
+
+test('snapshot fails when git hash-object fails part-way (a nested repository): unknown never counts as unchanged', async ($, on) => {
+  const w = installWorld(on)
+  w.rules.push({ match: argvIs('git', 'status'), answer: { stdout: '?? a.ts\0?? nested/\0?? z.ts\0' } })
+  w.rules.push({ match: argvIs('git', 'hash-object'), answer: { exitCode: 128, stdout: 'abc123\n', stderr: "fatal: could not open 'nested/' for reading: Is a directory\n" } })
+  await expect(snapshot(worldIo(w), '/repo')).rejects.toThrow("git hash-object failed: fatal: could not open 'nested/' for reading: Is a directory")
+})
+
+test('snapshot fails when git hash-object answers fewer hashes than paths', async ($, on) => {
+  const w = installWorld(on)
+  w.rules.push({ match: argvIs('git', 'status'), answer: { stdout: '?? a.ts\0?? b.ts\0' } })
+  w.rules.push({ match: argvIs('git', 'hash-object'), answer: { stdout: 'abc123\n' } })
+  await expect(snapshot(worldIo(w), '/repo')).rejects.toThrow('git hash-object answered 1 hash(es) for 2 path(s)')
+})

@@ -36,12 +36,23 @@ export async function snapshot(io: Io, cwd: string): Promise<Baseline> {
   if (status.exitCode !== 0) throw new Error(`git status failed: ${firstLine(status.stderr)}`)
   const entries = parsePorcelainZ(status.stdout)
   const present = entries.filter(entry => !entry.deleted).map(entry => entry.path)
-  const hashed = present.length === 0 ? '' : (await git(io, cwd, ['hash-object', '--', ...present])).stdout
-  const hashes = hashed.split('\n').map(line => line.trim()).filter(line => line !== '')
+  const hashes = await hashAll(io, cwd, present)
   return Object.fromEntries([
     ...entries.filter(entry => entry.deleted).map(entry => [entry.path, 'deleted'] as const),
-    ...present.map((path, index) => [path, hashes[index] ?? 'unhashed'] as const),
+    ...present.map((path, index) => [path, hashes[index] ?? ''] as const),
   ])
+}
+
+/** One hash per path, or a throw: a path that cannot be hashed is unknown, never unchanged. */
+async function hashAll(io: Io, cwd: string, paths: readonly string[]): Promise<string[]> {
+  if (paths.length === 0) return []
+  const out = await git(io, cwd, ['hash-object', '--', ...paths])
+  if (out.exitCode !== 0) throw new Error(`git hash-object failed: ${firstLine(out.stderr) || `exit ${out.exitCode}`}`)
+  const hashes = out.stdout.split('\n').map(line => line.trim()).filter(line => line !== '')
+  if (hashes.length !== paths.length) {
+    throw new Error(`git hash-object answered ${hashes.length} hash(es) for ${paths.length} path(s)`)
+  }
+  return hashes
 }
 
 export const touchedBetween = (before: Baseline, after: Baseline): string[] =>
