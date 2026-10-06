@@ -37,7 +37,7 @@
 
 ## 7. Verification and archive
 
-- [ ] 7.1 Pure findings rules: verdict normalization, allowed resolutions and `verify.md` text [req: Verdicts never invent a pass; Per-finding resolution; Verify pass rule and verify.md]
+- [x] 7.1 Pure findings rules: verdict normalization, allowed resolutions and `verify.md` text [req: Verdicts never invent a pass; Per-finding resolution; Verify pass rule and verify.md]
 - [ ] 7.2 Verify runner: judge spawn, scoped ptest evidence, resolutions with linked tasks, targeted re-judge, `verify.md` proposal [req: Verify only after execution; Evidence from scoped ptest; Per-finding resolution; Targeted re-judge; Verify pass rule and verify.md]
 - [ ] 7.3 Retrospective draft and archive through the CLI with failure handling [req: Retrospective via diff; Archive preconditions; Archive through the CLI; Archive failure handling]
 - [ ] 7.4 Plan recovery after reload or compaction and the Engram mirror with `⚠ mirror pending` [req: Plan state persistence and recovery]
