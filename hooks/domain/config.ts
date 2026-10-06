@@ -1,6 +1,8 @@
 import { isRecord } from './json.ts'
 import type { ModelChoice, Role } from './types.ts'
 import { ROLES } from './types.ts'
+import type { PlanRole } from '../plan/types.ts'
+import { PLAN_ROLES, isPlanRole } from '../plan/types.ts'
 
 export const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
 export type Effort = (typeof EFFORTS)[number]
@@ -18,6 +20,26 @@ export const DEFAULTS: Readonly<Record<Role, { readonly model: string; readonly 
   implementer: { model: 'sonnet 5.5', effort: 'medium' },
   reviewer: { model: 'opus 5.5', effort: 'high' },
   refactorer: { model: 'sonnet 5.5', effort: 'medium' },
+}
+
+export type AgentRole = Role | PlanRole
+
+export const PLAN_DEFAULTS: Readonly<Record<PlanRole, { readonly model: string; readonly effort: Effort }>> = {
+  brainstormer: { model: 'opus 5.5', effort: 'high' },
+  drafter: { model: 'opus 5.5', effort: 'high' },
+  explainer: { model: 'sonnet 5.5', effort: 'medium' },
+  critic: { model: 'opus 5.5', effort: 'high' },
+  judge: { model: 'opus 5.5', effort: 'high' },
+}
+
+/** D9: the drafter writes tasks.md with the cheaper default. */
+export const TASKS_DRAFTER_DEFAULT: { readonly model: string; readonly effort: Effort } = { model: 'sonnet 5.5', effort: 'medium' }
+
+const ALL_ROLES: readonly AgentRole[] = [...ROLES, ...PLAN_ROLES]
+
+const defaultOf = (role: AgentRole, artifact?: string): { readonly model: string; readonly effort: Effort } => {
+  if (!isPlanRole(role)) return DEFAULTS[role]
+  return role === 'drafter' && artifact === 'tasks' ? TASKS_DRAFTER_DEFAULT : PLAN_DEFAULTS[role]
 }
 
 export type Level = 'task' | 'project' | 'global' | 'default'
@@ -38,7 +60,7 @@ export interface Resolved {
 }
 
 export interface ProjectConfig {
-  readonly layers: Readonly<Partial<Record<Role, ModelChoice>>>
+  readonly layers: Readonly<Partial<Record<AgentRole, ModelChoice>>>
   readonly autoEscalate?: boolean
   readonly warnings: readonly string[]
 }
@@ -51,7 +73,7 @@ export const displayModel = (id: string): string => Object.entries(MODELS).find(
 export const stepUp = (effort: Effort): Effort => EFFORTS[Math.min(EFFORTS.indexOf(effort) + 1, EFFORTS.length - 1)] ?? 'max'
 
 function pick<T extends string>(
-  role: Role, field: 'model' | 'effort', layers: Layers, valid: (value: unknown) => value is T, fallback: T,
+  role: AgentRole, field: 'model' | 'effort', layers: Layers, valid: (value: unknown) => value is T, fallback: T,
 ): { value: T; source: Level; warnings: string[] } {
   for (const level of LEVELS) {
     const value = layers[level]?.[field]
@@ -74,12 +96,22 @@ export function resolveChoice(role: Role, layers: Layers, opts: { readonly loop:
     : { ...base, effort: effort.value, effortSource: effort.source }
 }
 
-export function globalLayer(options: Readonly<Record<string, unknown>>, role: Role): ModelChoice {
+export function resolvePlanChoice(role: PlanRole, layers: Layers, artifact?: string): Resolved {
+  const fallback = defaultOf(role, artifact)
+  const model = pick(role, 'model', layers, isModel, fallback.model)
+  const effort = pick(role, 'effort', layers, isEffort, fallback.effort)
+  const info = MODELS[model.value] ?? { id: model.value, supportsEffort: true }
+  const base = { model: model.value, modelId: info.id, modelSource: model.source, warnings: [...model.warnings, ...effort.warnings] }
+  return info.supportsEffort ? { ...base, effort: effort.value, effortSource: effort.source } : { ...base, effortSource: 'unsupported' }
+}
+
+export function globalLayer(options: Readonly<Record<string, unknown>>, role: AgentRole): ModelChoice {
   const model = options[`${role}Model`]
   const effort = options[`${role}Effort`]
+  const fallback = defaultOf(role)
   return {
-    model: typeof model === 'string' && model !== DEFAULTS[role].model ? model : undefined,
-    effort: typeof effort === 'string' && effort !== DEFAULTS[role].effort ? effort : undefined,
+    model: typeof model === 'string' && model !== fallback.model ? model : undefined,
+    effort: typeof effort === 'string' && effort !== fallback.effort ? effort : undefined,
   }
 }
 
@@ -99,9 +131,9 @@ export function parseProjectConfig(text: string | undefined): ProjectConfig {
   if (!isRecord(json)) return { layers: {}, warnings: ['.zboard/config.json must be a JSON object; ignoring it'] }
   const agents = isRecord(json.agents) ? json.agents : {}
   const layers = Object.fromEntries(
-    ROLES.flatMap(role => { const value = agents[role]; return isRecord(value) ? [[role, choiceOf(value)] as const] : [] }),
+    ALL_ROLES.flatMap(role => { const value = agents[role]; return isRecord(value) ? [[role, choiceOf(value)] as const] : [] }),
   )
-  const unknown = Object.keys(agents).filter(key => !(ROLES as readonly string[]).includes(key))
+  const unknown = Object.keys(agents).filter(key => !(ALL_ROLES as readonly string[]).includes(key))
   return {
     layers,
     ...(typeof json.autoEscalate === 'boolean' ? { autoEscalate: json.autoEscalate } : {}),
@@ -112,5 +144,6 @@ export function parseProjectConfig(text: string | undefined): ProjectConfig {
 export function configWarnings(project: ProjectConfig, options: Readonly<Record<string, unknown>>): string[] {
   const resolved = ROLES.flatMap(role =>
     resolveChoice(role, { project: project.layers[role], global: globalLayer(options, role) }, { loop: 0, autoEscalate: false }).warnings)
-  return [...project.warnings, ...resolved]
+  const planned = PLAN_ROLES.flatMap(role => resolvePlanChoice(role, { project: project.layers[role], global: globalLayer(options, role) }).warnings)
+  return [...project.warnings, ...resolved, ...planned]
 }

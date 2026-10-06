@@ -5,7 +5,9 @@ import { normalizeInside } from '../domain/paths.ts'
 import { runOf, taskOfAgent } from '../domain/project.ts'
 import type { Board } from '../domain/types.ts'
 import { READ_ONLY_PHASES } from '../domain/types.ts'
+import { changeOfAgent } from '../plan/plan-project.ts'
 import { append, readBoard, recordModError } from './log-store.ts'
+import { readPlan } from './plan-store.ts'
 
 export const DENY_LIMIT = 3
 
@@ -59,6 +61,7 @@ export async function placeInside(io: Io, path: string, root: string): Promise<s
 
 async function check(io: Io, agentId: string | undefined, path: string): Promise<string | undefined> {
   if (agentId === undefined) return undefined
+  if (changeOfAgent(await readPlan(io), agentId) !== undefined) return `zboard: plan agents are read-only; ${path} was not changed.`
   const board = await readBoard(io)
   if (taskOfAgent(board, agentId) === undefined) return undefined
   const root = await io.session.root()

@@ -1,8 +1,11 @@
-import type { EngineInterface, On } from 'claude-code'
+import type { AgentSpawnArgs, EngineInterface, On } from 'claude-code'
 import type { Io } from '../runtime/io.ts'
 
 import type { Role } from '../domain/types.ts'
-import { READ_ONLY_PHASES, ROLE_OF, ROLES, agentTypeOf } from '../domain/types.ts'
+import { AGENT_PREFIX, READ_ONLY_PHASES, ROLE_OF, ROLES, agentTypeOf } from '../domain/types.ts'
+import type { PlanRole } from '../plan/types.ts'
+import { PLAN_ROLES } from '../plan/types.ts'
+import { PLAN_DESCRIPTIONS, PLAN_SYSTEM_PROMPTS } from './prompts-plan.ts'
 import { ROLE_DESCRIPTIONS, SYSTEM_PROMPTS } from './prompts.ts'
 
 type AgentSpecInput = Parameters<EngineInterface['agent']['register']>[0]
@@ -39,17 +42,48 @@ export function installAgentOffer(on: On): void {
   on('agent.offer', ($, e, next) => (e.agent.startsWith(`${$.plugin.name}:`) ? { isOffered: false } : next(e)))
 }
 
-const locks = new Map<Role, Promise<unknown>>()
+export const PLAN_DISALLOWED: readonly string[] = ['Edit', 'Write', 'NotebookEdit', 'Bash']
 
-/** Effort is a property of the agent type, so the role is re-registered with it right before its spawn, one role at a time. */
-export async function spawnRole(io: Io, req: SpawnRequest): Promise<SpawnOutcome> {
-  const previous = locks.get(req.role) ?? Promise.resolve()
+export function planAgentSpec(role: PlanRole, effort?: string): AgentSpecInput {
+  return {
+    name: role,
+    description: PLAN_DESCRIPTIONS[role],
+    prompt: PLAN_SYSTEM_PROMPTS[role],
+    background: true,
+    disallowedTools: [...PLAN_DISALLOWED],
+    ...(effort === undefined ? {} : { effort }),
+  }
+}
+
+export async function registerPlanAgentTypes(io: { readonly agent: Pick<Io['agent'], 'register'> }): Promise<void> {
+  for (const role of PLAN_ROLES) await io.agent.register(planAgentSpec(role))
+}
+
+const locks = new Map<string, Promise<unknown>>()
+
+/** Effort is a property of the agent type, so a type is re-registered right before its spawn, one spawn per type at a time. */
+async function spawnTyped(io: Io, spec: AgentSpecInput, args: AgentSpawnArgs): Promise<SpawnOutcome> {
+  const previous = locks.get(spec.name) ?? Promise.resolve()
   const run = previous.catch(() => undefined).then(async () => {
-    await io.agent.register(agentSpec(req.role, req.effort))
-    return io.agent.spawn({ subagentType: agentTypeOf(req.role), prompt: req.prompt, description: req.description, model: req.model })
+    await io.agent.register(spec)
+    return io.agent.spawn(args)
   })
-  locks.set(req.role, run)
+  locks.set(spec.name, run)
   const result = await run
   if (result.deny !== undefined) return { deny: result.deny }
   return result.agentId === undefined ? { deny: 'the spawn answered without an agent id' } : { agentId: result.agentId, model: result.model }
 }
+
+export const spawnRole = (io: Io, req: SpawnRequest): Promise<SpawnOutcome> =>
+  spawnTyped(io, agentSpec(req.role, req.effort), { subagentType: agentTypeOf(req.role), prompt: req.prompt, description: req.description, model: req.model })
+
+export interface PlanSpawnRequest {
+  readonly role: PlanRole
+  readonly prompt: string
+  readonly description: string
+  readonly model: string
+  readonly effort?: string
+}
+
+export const spawnPlanRole = (io: Io, req: PlanSpawnRequest): Promise<SpawnOutcome> =>
+  spawnTyped(io, planAgentSpec(req.role, req.effort), { subagentType: `${AGENT_PREFIX}:${req.role}`, prompt: req.prompt, description: req.description, model: req.model })

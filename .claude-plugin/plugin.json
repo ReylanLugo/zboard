@@ -16,6 +16,16 @@
     "reviewerEffort": { "type": "string", "title": "Reviewer effort", "description": "Effort for zboard:reviewer", "default": "high", "options": ["low", "medium", "high", "xhigh", "max"] },
     "refactorerModel": { "type": "string", "title": "Refactorer model", "description": "Model for zboard:refactorer", "default": "sonnet 5.5", "options": ["opus 5.5", "sonnet 5.5", "haiku 4.5"] },
     "refactorerEffort": { "type": "string", "title": "Refactorer effort", "description": "Effort for zboard:refactorer", "default": "medium", "options": ["low", "medium", "high", "xhigh", "max"] },
+    "brainstormerModel": { "type": "string", "title": "Brainstormer model", "description": "Model for zboard:brainstormer", "default": "opus 5.5", "options": ["opus 5.5", "sonnet 5.5", "haiku 4.5"] },
+    "brainstormerEffort": { "type": "string", "title": "Brainstormer effort", "description": "Effort for zboard:brainstormer", "default": "high", "options": ["low", "medium", "high", "xhigh", "max"] },
+    "drafterModel": { "type": "string", "title": "Drafter model", "description": "Model for zboard:drafter (tasks.md defaults to sonnet 5.5/medium)", "default": "opus 5.5", "options": ["opus 5.5", "sonnet 5.5", "haiku 4.5"] },
+    "drafterEffort": { "type": "string", "title": "Drafter effort", "description": "Effort for zboard:drafter", "default": "high", "options": ["low", "medium", "high", "xhigh", "max"] },
+    "explainerModel": { "type": "string", "title": "Explainer model", "description": "Model for zboard:explainer", "default": "sonnet 5.5", "options": ["opus 5.5", "sonnet 5.5", "haiku 4.5"] },
+    "explainerEffort": { "type": "string", "title": "Explainer effort", "description": "Effort for zboard:explainer", "default": "medium", "options": ["low", "medium", "high", "xhigh", "max"] },
+    "criticModel": { "type": "string", "title": "Critic model", "description": "Model for zboard:critic", "default": "opus 5.5", "options": ["opus 5.5", "sonnet 5.5", "haiku 4.5"] },
+    "criticEffort": { "type": "string", "title": "Critic effort", "description": "Effort for zboard:critic", "default": "high", "options": ["low", "medium", "high", "xhigh", "max"] },
+    "judgeModel": { "type": "string", "title": "Judge model", "description": "Model for zboard:judge", "default": "opus 5.5", "options": ["opus 5.5", "sonnet 5.5", "haiku 4.5"] },
+    "judgeEffort": { "type": "string", "title": "Judge effort", "description": "Effort for zboard:judge", "default": "high", "options": ["low", "medium", "high", "xhigh", "max"] },
     "autoEscalate": { "type": "boolean", "title": "Auto-escalate refactorer", "description": "Raise the refactorer effort one step on review loop 3", "default": false },
     "concurrency": { "type": "number", "title": "Concurrent tasks", "description": "How many tasks run at once", "default": 3 }
   }

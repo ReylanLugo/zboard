@@ -1,7 +1,7 @@
 import type { EngineInterface, Register } from 'claude-code'
 import { atom, read, update } from 'claude-code'
 
-import { installAgentOffer, registerAgentTypes } from './adapters/agents.ts'
+import { installAgentOffer, registerAgentTypes, registerPlanAgentTypes } from './adapters/agents.ts'
 import { parseArgs } from './commands/args.ts'
 import { dispatch, registerCommand } from './commands/zboard.ts'
 import { installEngramAllow } from './adapters/engram.ts'
@@ -134,6 +134,7 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     const io = ioOf($)
     await registerAgentTypes(io)
+    await registerPlanAgentTypes(io)
     await registerReadTools(io)
     await registerWriteTools(io)
     await registerCommand(io)
