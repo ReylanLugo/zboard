@@ -2,11 +2,11 @@ import type { Io } from './io.ts'
 
 import { changeFiles, listFiles } from '../adapters/artifacts.ts'
 import { judgePrompt } from '../adapters/prompts-plan.ts'
-import { runFile } from '../adapters/ptest.ts'
+import { runFile, testsExecuted } from '../adapters/ptest.ts'
 import type { JudgeRaw } from '../plan/contracts.ts'
 import { parseJudge } from '../plan/contracts.ts'
 import type { TestEvidence } from '../plan/findings.ts'
-import { canResolve, isCitableTest, normalizeFindings, verifyMarkdown } from '../plan/findings.ts'
+import { canResolve, evidencePath, isCitableTest, normalizeFindings, verifyMarkdown } from '../plan/findings.ts'
 import { actionsFor, affectedRequirements } from '../plan/lifecycle.ts'
 import { parseRequirements } from '../plan/readiness.ts'
 import type { PlanJob, Resolution } from '../plan/types.ts'
@@ -35,24 +35,44 @@ async function prompt(io: Io, changeId: string, job: JudgeJob, gateReason?: stri
   return judgePrompt({ changeId, specs, mainSpecs, requirements: job.requirements.length > 0 ? job.requirements : all, gateReason })
 }
 
+/** A citable repository-relative path naming a regular file (not a directory or link). */
+async function isRegularFile(io: Io, path: string): Promise<boolean> {
+  if (!isCitableTest(path)) return false
+  try {
+    const stat = await io.fs.stat(path)
+    return stat.kind === 'file' && !stat.isLink
+  } catch {
+    return false
+  }
+}
+
 /** D13.2: zboard runs every citable cited test file once (ptest retries 70/75/124 itself); the judge never runs commands. */
 async function evidenceFor(io: Io, files: readonly string[]): Promise<Record<string, TestEvidence>> {
   const root = await io.session.root()
   const entries: (readonly [string, TestEvidence])[] = []
   for (const file of [...new Set(files)]) {
-    if (!isCitableTest(file) || !(await io.fs.exists(file))) {
+    if (!(await isRegularFile(io, file))) {
       entries.push([file, { file, kind: 'unknown', endLine: 'not a repository test file; not run' }])
       continue
     }
     const run = await runFile(io, file, root)
-    entries.push([file, { file, kind: run.kind, endLine: run.endLine }])
+    const kind = run.kind === 'pass' && testsExecuted(run.endLine) < 1 ? 'unknown' : run.kind
+    entries.push([file, { file, kind, endLine: run.endLine }])
   }
   return Object.fromEntries(entries)
 }
 
+/** Evidence `path:line` files that exist as regular files. */
+async function presentPaths(io: Io, raw: readonly JudgeRaw[]): Promise<Set<string>> {
+  const paths = [...new Set(raw.flatMap(item => item.evidence.map(evidencePath)).filter((path): path is string => path !== undefined))]
+  const checked = await Promise.all(paths.map(async path => ((await isRegularFile(io, path)) ? [path] : [])))
+  return new Set(checked.flat())
+}
+
 async function record(io: Io, changeId: string, job: JudgeJob, raw: readonly JudgeRaw[] | undefined): Promise<void> {
   const tests = raw === undefined ? {} : await evidenceFor(io, raw.flatMap(item => item.tests))
-  const findings = normalizeFindings({ raw, requirements: await requirementsOf(io, changeId), scope: job.requirements, tests })
+  const present = raw === undefined ? new Set<string>() : await presentPaths(io, raw)
+  const findings = normalizeFindings({ raw, requirements: await requirementsOf(io, changeId), scope: job.requirements, tests, present })
   await appendPlan(io, [{ type: 'VerifyRecorded', changeId, findings, scope: job.requirements }])
 }
 

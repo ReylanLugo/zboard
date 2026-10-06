@@ -52,6 +52,7 @@ test('cited tests run through ptest from the root and their end lines become evi
   const w = installWorld(on)
   const io = await executed(w)
   w.files.set('/repo/tests/export.test.ts', 't')
+  w.files.set('/repo/src/export.ts', 's')
   scriptPtest(w, [GREEN])
   await verifyChange(io, ctx, 'a')
   await planStop(io, ctx, { agentId: lastAgent(w), answer: json({ findings: [verdict('Export CSV', 'true', ['src/export.ts:3'], ['tests/export.test.ts'])] }) })
@@ -68,6 +69,36 @@ test('a true verdict whose cited test cannot run (exit 70 twice) is no_evidence'
   scriptPtest(w, [INCOMPLETE, INCOMPLETE])
   await verifyChange(io, ctx, 'a')
   await planStop(io, ctx, { agentId: lastAgent(w), answer: json({ findings: [verdict('Export CSV', 'true', ['src/export.ts:3'], ['tests/export.test.ts'])] }) })
+  expect((await readPlan(io)).changes.a?.verify?.findings[0]?.verdict).toBe('no_evidence')
+})
+
+test('a true verdict citing no test, a test that ran nothing, or a missing evidence file is no_evidence', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+  const w = installWorld(on)
+  const io = await executed(w)
+  w.files.set('/repo/tests/empty.test.ts', 't')
+  w.files.set('/repo/src/export.ts', 's')
+  scriptPtest(w, [{ exitCode: 0, stderr: 'ptest: no changes vs main — nothing to test\n' }, GREEN])
+  await verifyChange(io, ctx, 'a')
+  await planStop(io, ctx, { agentId: lastAgent(w), answer: json({ findings: [
+    verdict('Export CSV', 'true', ['src/export.ts:3']),
+    verdict('Import CSV', 'true', ['src/export.ts:3'], ['tests/empty.test.ts']),
+  ] }) })
+  expect((await readPlan(io)).changes.a?.verify?.findings.map(f => f.verdict)).toEqual(['no_evidence', 'no_evidence'])
+  w.files.set('/repo/tests/export.test.ts', 't')
+  await appendPlan(io, [{ type: 'VerifyRecorded', changeId: 'a', scope: [], findings: [finding({ requirement: 'Export CSV', verdict: 'false', resolution: 'fix_code', linkedTask: '1.1' })] }])
+  await rejudge(io, ctx, 'a')
+  await planStop(io, ctx, { agentId: lastAgent(w), answer: json({ findings: [verdict('Export CSV', 'true', ['src/gone.ts:3'], ['tests/export.test.ts'])] }) })
+  expect((await readPlan(io)).changes.a?.verify?.findings.find(f => f.requirement === 'Export CSV')?.verdict).toBe('no_evidence')
+})
+
+test('a cited test that is a directory is never run', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+  const w = installWorld(on)
+  const io = await executed(w)
+  w.files.set('/repo/tests/unit/a.test.ts', 't')
+  w.files.set('/repo/src/export.ts', 's')
+  await verifyChange(io, ctx, 'a')
+  await planStop(io, ctx, { agentId: lastAgent(w), answer: json({ findings: [verdict('Export CSV', 'true', ['src/export.ts:3'], ['tests/unit'])] }) })
+  expect(w.runs.filter(argv => argv[0] === 'ptest')).toEqual([])
   expect((await readPlan(io)).changes.a?.verify?.findings[0]?.verdict).toBe('no_evidence')
 })
 
@@ -134,7 +165,10 @@ test('re-judge covers only the affected requirements and keeps the other verdict
   ] }])
   expect(await rejudge(io, ctx, 'a')).toBe(true)
   expect(w.spawns[0]?.prompt).toContain('<zboard-data label="requirements" trust="untrusted">\nExport CSV\n</zboard-data>')
-  await planStop(io, ctx, { agentId: lastAgent(w), answer: json({ findings: [verdict('Export CSV', 'true', ['src/export.ts:9'])] }) })
+  w.files.set('/repo/src/export.ts', 's')
+  w.files.set('/repo/tests/export.test.ts', 't')
+  scriptPtest(w, [GREEN])
+  await planStop(io, ctx, { agentId: lastAgent(w), answer: json({ findings: [verdict('Export CSV', 'true', ['src/export.ts:9'], ['tests/export.test.ts'])] }) })
   const verify = (await readPlan(io)).changes.a?.verify
   expect(verify?.runs).toBe(2)
   expect(verify?.findings.map(f => [f.requirement, f.verdict])).toEqual([['Import CSV', 'true'], ['Export CSV', 'true']])

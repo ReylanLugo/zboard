@@ -37,19 +37,35 @@ export interface NormalizeInput {
   readonly requirements: readonly string[]
   readonly scope: readonly string[]
   readonly tests: Readonly<Record<string, TestEvidence>>
+  /** Repository-relative evidence paths that exist as regular files. */
+  readonly present: ReadonlySet<string>
+}
+
+/** The file of a `path:line` evidence entry, or undefined for prose evidence. */
+export const evidencePath = (item: string): string | undefined => {
+  const trimmed = item.trim()
+  return PATH_LINE.test(trimmed) ? trimmed.slice(0, trimmed.indexOf(':')) : undefined
+}
+
+/**
+ * A `true` stands only on proof: at least one cited test, every cited test run and passing,
+ * and at least one `path:line` evidence entry, each naming a file that exists.
+ */
+function isProven(raw: JudgeRaw, runs: readonly TestEvidence[], present: ReadonlySet<string>): boolean {
+  const paths = raw.evidence.map(evidencePath).filter((path): path is string => path !== undefined)
+  return runs.length > 0 && runs.every(run => run.kind === 'pass')
+    && paths.length > 0 && paths.every(path => isCitableTest(path) && present.has(path))
 }
 
 const noEvidence = (requirement: string, why: string): Finding => ({ id: findingId(requirement), requirement, verdict: 'no_evidence', evidence: [why] })
 
-function normalizeOne(raw: JudgeRaw, tests: Readonly<Record<string, TestEvidence>>): Finding {
+function normalizeOne(raw: JudgeRaw, tests: Readonly<Record<string, TestEvidence>>, present: ReadonlySet<string>): Finding {
   const verdict = VERDICTS.find(known => known === raw.verdict) ?? 'ambiguous'
   const runs = raw.tests.map(file => tests[file] ?? { file, kind: 'unknown' as const, endLine: 'not run' })
   const evidence = [...raw.evidence, ...runs.map(run => `ptest ${run.file}: ${run.endLine}`)]
   const base = { id: findingId(raw.requirement, raw.scenario), requirement: raw.requirement, ...(raw.scenario === undefined ? {} : { scenario: raw.scenario }), evidence }
   if (verdict !== 'true') return { ...base, verdict }
-  const isCited = raw.evidence.some(item => PATH_LINE.test(item.trim()))
-  const isProven = runs.every(run => run.kind === 'pass')
-  return { ...base, verdict: isCited && isProven ? 'true' : 'no_evidence' }
+  return { ...base, verdict: isProven(raw, runs, present) ? 'true' : 'no_evidence' }
 }
 
 /** D13.3: zboard never produces `true` on its own. */
@@ -57,7 +73,7 @@ export function normalizeFindings(input: NormalizeInput): Finding[] {
   const judged = input.scope.length === 0 ? input.requirements : input.requirements.filter(name => input.scope.includes(name))
   if (input.raw === undefined) return judged.map(name => noEvidence(name, 'the judge gave no valid answer'))
   const relevant = input.raw.filter(raw => judged.includes(raw.requirement))
-  const findings = relevant.map(raw => normalizeOne(raw, input.tests))
+  const findings = relevant.map(raw => normalizeOne(raw, input.tests, input.present))
   const unique = findings.filter((finding, index) => findings.findIndex(other => other.id === finding.id) === index)
   const omitted = judged.filter(name => !relevant.some(raw => raw.requirement === name))
   return [...unique, ...omitted.map(name => noEvidence(name, 'the judge gave no verdict'))]

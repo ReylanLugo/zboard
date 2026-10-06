@@ -24,13 +24,26 @@ export function parseFailures(stdout: string): string[] {
   return unique([...pytest, ...vitest].filter(name => name !== ''))
 }
 
+const PASSED_COUNT = /\bpassed\b.*?(\d+) tests?\b/
+const RAN_NOTHING = /nothing to test|no changes|no tests affected/i
+
+/** Tests a passed end line reports as executed; 0 when it names none. */
+export function testsExecuted(endLine: string): number {
+  const count = PASSED_COUNT.exec(endLine)?.[1]
+  return count === undefined ? 0 : Number(count)
+}
+
+/** An exit 0 whose end line says nothing ran (or 0 tests ran) proves nothing. */
+const ranNothing = (endLine: string): boolean =>
+  RAN_NOTHING.test(endLine) || (PASSED_COUNT.test(endLine) && testsExecuted(endLine) === 0)
+
 const message = (error: unknown): string => (error instanceof Error ? error.message : String(error))
 
 async function attempt(io: Io, file: string, cwd: string): Promise<Attempt> {
   try {
     const out = await io.process.run(['ptest', file], { cwd, timeoutMs: PTEST_TIMEOUT_MS })
     const endLine = endLineOf(out.stderr, out.stdout) || `ptest exit ${out.exitCode}`
-    if (out.exitCode === 0) return { kind: 'pass', endLine, failures: [] }
+    if (out.exitCode === 0) return { kind: ranNothing(endLine) ? 'unknown' : 'pass', endLine, failures: [] }
     if (out.exitCode === 1) return { kind: 'fail', endLine, failures: parseFailures(out.stdout) }
     return { kind: RETRYABLE.has(out.exitCode) ? 'retryable' : 'unknown', endLine, failures: [] }
   } catch (error) {

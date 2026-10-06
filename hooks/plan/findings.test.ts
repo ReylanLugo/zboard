@@ -12,20 +12,21 @@ test('true needs path:line evidence and every cited test passing', () => {
     raw: [raw('Export CSV', 'true', ['src/export.ts:12'], ['tests/export.test.ts']), raw('Import CSV', 'true', []), raw('Delete CSV', 'true', ['src/delete.ts:3'], ['tests/delete.test.ts'])],
     requirements: FIVE.slice(0, 3), scope: [],
     tests: { 'tests/export.test.ts': pass, 'tests/delete.test.ts': { file: 'tests/delete.test.ts', kind: 'incomplete', endLine: 'ptest: incomplete (exit 70)' } },
+    present: new Set(['src/export.ts', 'src/delete.ts']),
   })
   expect(findings.map(f => [f.requirement, f.verdict])).toEqual([['Export CSV', 'true'], ['Import CSV', 'no_evidence'], ['Delete CSV', 'no_evidence']])
   expect(findings[0]?.evidence).toEqual(['src/export.ts:12', 'ptest tests/export.test.ts: ptest: demo · passed · 3 tests'])
 })
 
 test('invalid judge output makes every requirement no_evidence and none true', () => {
-  const findings = normalizeFindings({ raw: undefined, requirements: FIVE, scope: [], tests: {} })
+  const findings = normalizeFindings({ raw: undefined, requirements: FIVE, scope: [], tests: {}, present: new Set() })
   expect(findings.map(f => f.verdict)).toEqual(['no_evidence', 'no_evidence', 'no_evidence', 'no_evidence', 'no_evidence'])
 })
 
 test('an omitted requirement is no_evidence; an unknown verdict is ambiguous; a requirement outside the change is dropped', () => {
   const findings = normalizeFindings({
     raw: [raw('Export CSV', 'false', ['src/export.ts:1']), raw('Import CSV', 'probably'), raw('Delete CSV', 'contradiction'), raw('Rename CSV', 'no_evidence'), raw('Unrelated', 'true', ['a.ts:1'])],
-    requirements: FIVE, scope: [], tests: {},
+    requirements: FIVE, scope: [], tests: {}, present: new Set(['src/export.ts', 'a.ts']),
   })
   expect(findings.map(f => [f.requirement, f.verdict])).toEqual([
     ['Export CSV', 'false'], ['Import CSV', 'ambiguous'], ['Delete CSV', 'contradiction'], ['Rename CSV', 'no_evidence'], ['Merge CSV', 'no_evidence'],
@@ -34,9 +35,28 @@ test('an omitted requirement is no_evidence; an unknown verdict is ambiguous; a 
 })
 
 test('a scoped run judges only its requirements; scenario findings get their own ids', () => {
-  const findings = normalizeFindings({ raw: [{ ...raw('Import CSV', 'true', ['src/import.ts:4']), scenario: 'Bad rows' }], requirements: FIVE, scope: ['Import CSV'], tests: {} })
-  expect(findings).toEqual([{ id: 'r:import-csv#bad-rows', requirement: 'Import CSV', scenario: 'Bad rows', verdict: 'true', evidence: ['src/import.ts:4'] }])
+  const tests = { 'tests/import.test.ts': { file: 'tests/import.test.ts', kind: 'pass' as const, endLine: 'ptest: demo · passed · 2 tests' } }
+  const findings = normalizeFindings({
+    raw: [{ ...raw('Import CSV', 'true', ['src/import.ts:4'], ['tests/import.test.ts']), scenario: 'Bad rows' }],
+    requirements: FIVE, scope: ['Import CSV'], tests, present: new Set(['src/import.ts']),
+  })
+  expect(findings).toEqual([{ id: 'r:import-csv#bad-rows', requirement: 'Import CSV', scenario: 'Bad rows', verdict: 'true', evidence: ['src/import.ts:4', 'ptest tests/import.test.ts: ptest: demo · passed · 2 tests'] }])
   expect(findingId('Export CSV')).toBe('r:export-csv')
+})
+
+test('true without a cited passing test, or citing a missing evidence file, is no_evidence', () => {
+  const findings = normalizeFindings({
+    raw: [
+      raw('Export CSV', 'true', ['src/export.ts:12']),
+      raw('Import CSV', 'true', ['src/missing.ts:4'], ['tests/export.test.ts']),
+      raw('Delete CSV', 'true', ['src/export.ts:12', 'src/missing.ts:1'], ['tests/export.test.ts']),
+      raw('Rename CSV', 'true', ['src/export.ts:12'], ['tests/empty.test.ts']),
+    ],
+    requirements: FIVE.slice(0, 4), scope: [],
+    tests: { 'tests/export.test.ts': pass, 'tests/empty.test.ts': { file: 'tests/empty.test.ts', kind: 'unknown', endLine: 'ptest: no changes vs main — nothing to test' } },
+    present: new Set(['src/export.ts']),
+  })
+  expect(findings.map(f => f.verdict)).toEqual(['no_evidence', 'no_evidence', 'no_evidence', 'no_evidence'])
 })
 
 test('resolutions follow the verdict table', () => {

@@ -4,7 +4,7 @@ import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
 
 import type { Io } from '../runtime/io.ts'
 import { argvIs, installWorld, worldIo } from '../testing/world.ts'
-import { endLineOf, parseFailures, runScoped } from './ptest.ts'
+import { endLineOf, parseFailures, runFile, runScoped, testsExecuted } from './ptest.ts'
 
 const scoped = (files: string[]) => (($: Io) => runScoped($, files, '/repo'))
 
@@ -60,4 +60,19 @@ test('an unexpected exit code is unknown, and no files is unknown', { timeoutMs:
     { kind: 'unknown', endLine: 'ptest: unknown command', failures: [] },
     { kind: 'unknown', endLine: 'no test files to run', failures: [] },
   ])
+})
+
+test('an exit 0 that ran no test is unknown, never a pass', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+  const w = installWorld(on)
+  w.rules.push({ match: argvIs('ptest', 'tests/none.py'), answer: { exitCode: 0, stderr: 'ptest: no changes vs main — nothing to test\n' } })
+  w.rules.push({ match: argvIs('ptest', 'tests/zero.py'), answer: { exitCode: 0, stderr: 'ptest: demo · passed · 0 tests\n' } })
+  w.rules.push({ match: argvIs('ptest', 'tests/unaffected.py'), answer: { exitCode: 0, stderr: 'changed: tests/unaffected.py → no tests affected\n' } })
+  const io = worldIo(w)
+  for (const file of ['tests/none.py', 'tests/zero.py', 'tests/unaffected.py']) expect((await runFile(io, file, '/repo')).kind).toBe('unknown')
+})
+
+test('testsExecuted reads the count from a passed end line', () => {
+  expect(testsExecuted('ptest: demo · passed · 3 tests')).toBe(3)
+  expect(testsExecuted('ptest: demo · passed · 1 test')).toBe(1)
+  expect(testsExecuted('ptest: no changes vs main — nothing to test')).toBe(0)
 })
