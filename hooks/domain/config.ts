@@ -125,6 +125,9 @@ const choiceOf = (value: Record<string, unknown>): ModelChoice => ({
 
 export const TEST_COMMAND_LIMITS = { maxItems: 32, maxLength: 512, minTimeoutMs: 1_000, maxTimeoutMs: 3_600_000 } as const
 
+/** Claude Code kills a `$.process.run` child after ten minutes at most. */
+export const PROCESS_MAX_TIMEOUT_MS = 600_000
+
 type TestSettings = Pick<ProjectConfig, 'testCommand' | 'testTimeoutMs'> & { readonly warnings: readonly string[] }
 
 const isTestCommand = (value: unknown): value is string[] =>
@@ -149,7 +152,12 @@ function testSettings(json: Readonly<Record<string, unknown>>): TestSettings {
     const { minTimeoutMs, maxTimeoutMs } = TEST_COMMAND_LIMITS
     return { warnings: [`.zboard/config.json: testTimeoutMs must be an integer from ${minTimeoutMs} to ${maxTimeoutMs}; using ptest`] }
   }
-  return { testCommand: [...testCommand], ...(testTimeoutMs === undefined ? {} : { testTimeoutMs }), warnings: [] }
+  const capped = testTimeoutMs !== undefined && testTimeoutMs > PROCESS_MAX_TIMEOUT_MS
+  return {
+    testCommand: [...testCommand],
+    ...(testTimeoutMs === undefined ? {} : { testTimeoutMs }),
+    warnings: capped ? [`.zboard/config.json: testTimeoutMs ${testTimeoutMs} exceeds the ${PROCESS_MAX_TIMEOUT_MS} ms a process may run; capped at ${PROCESS_MAX_TIMEOUT_MS}`] : [],
+  }
 }
 
 export function parseProjectConfig(text: string | undefined): ProjectConfig {

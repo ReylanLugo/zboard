@@ -49,3 +49,11 @@ test('testTimeoutMs without testCommand is ignored with a warning', () => {
 test('configWarnings surfaces test command warnings for the board header', () => {
   expect(configWarnings(parsed({ testCommand: [] }), {})).toEqual([COMMAND_WARNING])
 })
+
+test('a testTimeoutMs above the ten-minute process limit is kept with a capping warning', () => {
+  expect(parsed({ testCommand: ['pytest'], testTimeoutMs: 900_000 })).toEqual({
+    layers: {}, testCommand: ['pytest'], testTimeoutMs: 900_000,
+    warnings: ['.zboard/config.json: testTimeoutMs 900000 exceeds the 600000 ms a process may run; capped at 600000'],
+  })
+  expect(parsed({ testCommand: ['pytest'], testTimeoutMs: 600_000 }).warnings).toEqual([])
+})

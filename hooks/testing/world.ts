@@ -45,6 +45,8 @@ export interface World {
   readonly links: Map<string, string>
   readonly rules: ProcessRule[]
   readonly runs: string[][]
+  /** The cwd and timeout each process run asked for, in `runs` order. */
+  readonly runOptions: { readonly cwd?: string; readonly timeoutMs?: number }[]
   readonly spawns: SpawnRecord[]
   readonly agentSpecs: Map<string, Record<string, unknown>>
   readonly tools: string[]
@@ -96,6 +98,7 @@ export function installWorld(on: On): World {
     links: new Map(),
     rules: [],
     runs: [],
+    runOptions: [],
     spawns: [],
     agentSpecs: new Map(),
     tools: [],
@@ -200,8 +203,12 @@ const fsList = (w: World, spelled: string): Answer<FsEntry[]> => {
   }
 }
 
-const processRun = (w: World, argv: readonly string[]): Answer<ProcessRunResult> => {
+const processRun = (w: World, argv: readonly string[], init?: { readonly cwd?: string; readonly timeoutMs?: number }): Answer<ProcessRunResult> => {
   w.runs.push([...argv])
+  w.runOptions.push({
+    ...(init?.cwd === undefined ? {} : { cwd: init.cwd }),
+    ...(init?.timeoutMs === undefined ? {} : { timeoutMs: init.timeoutMs }),
+  })
   const index = w.rules.findIndex(rule => rule.match(argv))
   const rule = w.rules[index]
   if (rule === undefined) return { deny: `world: unscripted command: ${argv.join(' ')}` }
@@ -228,7 +235,7 @@ function installFs(on: On, w: World): void {
 }
 
 function installProcess(on: On, w: World): void {
-  on('process.run', (_$, e) => processRun(w, e.argv))
+  on('process.run', (_$, e) => processRun(w, e.argv, e.init))
 }
 
 /** Resolves an answer as the engine resolves a `$` call: a deny rejects. */
@@ -245,7 +252,7 @@ export function worldIo(w: World): Io {
       stat: (path, options) => settle(fsStat(w, path, options?.resolve)),
       list: path => settle(fsList(w, path)),
     },
-    process: { run: argv => settle(processRun(w, argv)) },
+    process: { run: (argv, init) => settle(processRun(w, argv, init)) },
     agent: {
       register: async spec => agentRegister(w, spec) as Awaited<ReturnType<Io['agent']['register']>>,
       spawn: async input => agentSpawn(w, input),
