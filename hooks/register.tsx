@@ -18,6 +18,7 @@ import { append, isolate, readBoard } from './runtime/log-store.ts'
 import { mirrorCreated, mirrorUpdated } from './runtime/native.ts'
 import { installNotify } from './runtime/notify.ts'
 import { installOrchestrator } from './runtime/orchestrator.ts'
+import { installPlanJobs } from './runtime/plan-jobs.ts'
 import { planStop, planTokens } from './runtime/plan-runner.ts'
 import { isolatePlan } from './runtime/plan-store.ts'
 import { closeDetail, renderDetail } from './ui/Detail.tsx'
@@ -128,6 +129,7 @@ export const register: Register = (on, options) => {
   installEngramAllow(on)
   installAgentOffer(on)
   installOrchestrator(ctx)
+  installPlanJobs()
   installMirrorWiring()
   installNotify()
 
