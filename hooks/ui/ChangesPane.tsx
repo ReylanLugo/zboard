@@ -7,6 +7,7 @@ import { CHANGES_ID } from '../runtime/ctx.ts'
 import type { ChangeDocs } from '../runtime/plan-docs.ts'
 import type { ChangesUi, ComposeKind } from '../runtime/ui-types.ts'
 import { CHANGES_TABS } from '../runtime/ui-types.ts'
+import { ChangeDetail } from './ChangeDetail.tsx'
 import { selectChange, setChanges, setTab, startCompose, submitCompose } from './changes-actions.ts'
 import { GROUPS, defaultArtifact, groupRows, headerText, rowLabel } from './changes-model.ts'
 import type { Els } from './els.ts'
@@ -57,16 +58,8 @@ function Errors(els: Els, plan: PlanBoard): RenderElement[] {
   ]
 }
 
-/** Replaced by ChangeDetail in Task 8.2. */
-function Detail(els: Els, _io: Io, _ctx: Ctx, rec: ChangeRecord, _props: ChangesProps, _surface: Surface): RenderElement {
-  const { Box, Text } = els
-  return (
-    <Box key="detail" flexDirection="column" flexGrow={1}>
-      <Box key="detail-title"><Text bold>{`${rec.id} · ${rec.stage}`}</Text></Box>
-      {rec.listError === undefined ? null : <Box key="change-error"><Text>{`⚠ ${rec.listError}`}</Text></Box>}
-      {rec.errors.slice(-3).map((error, index) => <Box key={`change-error:${index}`}><Text dimColor>{`⚠ ${error.hook}: ${error.message}`}</Text></Box>)}
-    </Box>
-  )
+function Detail(els: Els, io: Io, ctx: Ctx, rec: ChangeRecord, props: ChangesProps, surface: Surface): RenderElement {
+  return ChangeDetail(els, io, ctx, { rec, ui: props.ui, docs: props.docs, surface, columns: props.columns })
 }
 
 function ChangesView(els: Els, surface: Surface, io: Io, ctx: Ctx, props: ChangesProps): RenderElement {
