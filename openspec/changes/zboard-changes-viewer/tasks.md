@@ -33,7 +33,7 @@
 ## 6. Explanation, critique and run
 
 - [x] 6.1 Explanation cached by fingerprint and Mermaid rendering through `mmdc` with fallback [req: Explanation cached by fingerprint; Mermaid rendering fallback]
-- [ ] 6.2 Critique findings to comments and the readiness-gated run handoff to the board [req: Optional critique; Run gated by readiness]
+- [x] 6.2 Critique findings to comments and the readiness-gated run handoff to the board [req: Optional critique; Run gated by readiness]
 
 ## 7. Verification and archive
 
