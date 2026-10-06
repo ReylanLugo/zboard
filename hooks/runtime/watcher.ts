@@ -4,6 +4,8 @@ import { loadChange, tasksPath } from '../adapters/openspec.ts'
 import type { Ctx } from './ctx.ts'
 import { append, readBoard, recordModError } from './log-store.ts'
 import { tick } from './orchestrator.ts'
+import { checkOpenChange } from './plan-catalog.ts'
+import { recordPlanError } from './plan-store.ts'
 
 export const POLL_MS = 5_000
 
@@ -23,11 +25,13 @@ export async function checkTasksFile(io: Io, ctx: Ctx): Promise<void> {
 export function startPolling(io: Io, ctx: Ctx): void {
   io.clock.every(POLL_MS, () => {
     void checkTasksFile(io, ctx).catch(error => recordModError(io, 'watcher.poll', error))
+    void checkOpenChange(io).catch(error => recordPlanError(io, 'watcher.plan', error))
   })
 }
 
 export async function fileChanged(io: Io, ctx: Ctx, path: string): Promise<void> {
   if (path.endsWith('/tasks.md')) await checkTasksFile(io, ctx)
+  if (path.includes('/openspec/changes/')) await checkOpenChange(io)
 }
 
 /** The active change's tasks.md, for SessionStart's watchPaths. */
