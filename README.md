@@ -33,6 +33,44 @@ in the detail, Esc closes the detail.
 The main session can read the board with `board_status`, `board_task`, `board_artifact` and `board_agent`,
 and comment with `board_comment`. It is told only when a task needs a decision or the change is complete.
 
+## Changes viewer
+
+`/zboard changes` opens the `zboard-changes` pane (`/zboard changes <change>` opens it on one change; `o` on the
+board opens it on the board's change). The list groups OpenSpec changes as Active, Drafts and Archived with their
+stage and task progress; the detail shows the artifact stepper (`●` done, `◐` current, `○` other), the readiness
+bar and the tabs Summary · Diagrams · Specs · Tasks · Verify · History.
+
+| Key | Action |
+|-----|--------|
+| `n` | New change (`openspec new change <id> --schema superpowers-bridge`) |
+| `d` | Draft the next artifact in `openspec status` order (brainstorm runs as a Q&A; the plan step shows a forecast first) |
+| `c` | Comment on the selected artifact → the drafter proposes a diff |
+| `a` / `z` | Accept / reject the pending diff |
+| `e` / `x` | Explain (cached by the change fingerprint) / critique |
+| `r` | ▶ Run on the board — only when every readiness check passes |
+| Tab, Esc | Move between tabs and buttons / close the viewer |
+
+Rules the viewer enforces:
+
+- Plan agents (`zboard:brainstormer`, `drafter`, `explainer`, `critic`, `judge`) never write and are hidden from the
+  model. zboard writes only diffs you accept, only under `openspec/changes/<change>/`, validates them with
+  `openspec validate --strict`, and commits each as `docs(<change>): <artifact> rev N`; an invalid result is restored
+  and a correction is requested. `openspec archive` is the only writer of `openspec/specs/`.
+- Readiness: `validate`, every requirement has a scenario, every task names a requirement (by name or `[req: <name>]`),
+  no dependency cycle, task text ≤ 600 characters and ≤ 12 tasks per group, and acceptance criteria
+  (`Acceptance:` in `tasks.md` or an **Acceptance** line in the task's `plan.md` section).
+- Verify runs only when every task is checked. The judge's cited tests run as `ptest <file>`; a `true` verdict without
+  `path:line` evidence or with a test that did not pass is `no_evidence`. Archive needs a passed verify run, every
+  finding-linked task done and the retrospective accepted.
+- Conceptual diagrams render through `mmdc` when installed (`npm i -g @mermaid-js/mermaid-cli`); PNGs for the terminal
+  go to `/tmp/zboard-mermaid`, never into the repository.
+- Plan history is mirrored to Engram under `zplan/<project>/<change>`; `⚠ mirror pending` means Engram is unavailable
+  and the viewer keeps working from its local log.
+
+Plan-agent models and efforts use the same three levels as the board (`.zboard/config.json` `agents.<role>`, the
+settings pickers, defaults: brainstormer, drafter, critic and judge opus 5.5/high; explainer sonnet 5.5/medium;
+the drafter writes `tasks.md` with sonnet 5.5/medium).
+
 ## Pipeline rules
 
 - Only tasks from `tasks.md` run; tasks created with `board_create_task` or native `TaskCreate` are tracked.

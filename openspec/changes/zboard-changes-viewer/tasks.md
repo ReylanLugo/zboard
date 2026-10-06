@@ -53,4 +53,4 @@
 
 ## 9. Integration
 
-- [ ] 9.1 End-to-end lifecycle and security integration tests through the plugin, README update [req: Changes pane; Write scope; User text is data; Verdicts never invent a pass; Archive failure handling]
+- [x] 9.1 End-to-end lifecycle and security integration tests through the plugin, README update [req: Changes pane; Write scope; User text is data; Verdicts never invent a pass; Archive failure handling]
