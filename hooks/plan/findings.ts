@@ -6,6 +6,8 @@ export interface TestEvidence {
   readonly file: string
   readonly kind: 'pass' | 'fail' | 'incomplete' | 'unknown'
   readonly endLine: string
+  /** The command that ran the file, e.g. `uv run pytest tests/x.py`; absent means `ptest <file>`. */
+  readonly command?: string
 }
 
 export const VERDICTS: readonly Verdict[] = ['true', 'false', 'no_evidence', 'ambiguous', 'contradiction']
@@ -62,7 +64,7 @@ const noEvidence = (requirement: string, why: string): Finding => ({ id: finding
 function normalizeOne(raw: JudgeRaw, tests: Readonly<Record<string, TestEvidence>>, present: ReadonlySet<string>): Finding {
   const verdict = VERDICTS.find(known => known === raw.verdict) ?? 'ambiguous'
   const runs = raw.tests.map(file => tests[file] ?? { file, kind: 'unknown' as const, endLine: 'not run' })
-  const evidence = [...raw.evidence, ...runs.map(run => `ptest ${run.file}: ${run.endLine}`)]
+  const evidence = [...raw.evidence, ...runs.map(run => `${run.command ?? `ptest ${run.file}`}: ${run.endLine}`)]
   const base = { id: findingId(raw.requirement, raw.scenario), requirement: raw.requirement, ...(raw.scenario === undefined ? {} : { scenario: raw.scenario }), evidence }
   if (verdict !== 'true') return { ...base, verdict }
   return { ...base, verdict: isProven(raw, runs, present) ? 'true' : 'no_evidence' }

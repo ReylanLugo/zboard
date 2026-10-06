@@ -3,7 +3,7 @@ import type { Io } from './io.ts'
 import { changeFiles, listFiles } from '../adapters/artifacts.ts'
 import { judgePrompt } from '../adapters/prompts-plan.ts'
 import { readProjectConfig } from '../adapters/config-io.ts'
-import { runFile, runnerOf } from '../adapters/test-runner.ts'
+import { commandDisplay, runFile, runnerOf } from '../adapters/test-runner.ts'
 import type { JudgeRaw } from '../plan/contracts.ts'
 import { parseJudge } from '../plan/contracts.ts'
 import type { TestEvidence } from '../plan/findings.ts'
@@ -57,13 +57,14 @@ async function evidenceFor(io: Io, files: readonly string[]): Promise<Record<str
   const runner = runnerOf(await readProjectConfig(io))
   const entries: (readonly [string, TestEvidence])[] = []
   for (const file of [...new Set(files)]) {
+    const command = runner.kind === 'ptest' ? {} : { command: commandDisplay(runner, file) }
     if (!(await isRegularFile(io, file))) {
-      entries.push([file, { file, kind: 'unknown', endLine: 'not a repository test file; not run' }])
+      entries.push([file, { file, kind: 'unknown', endLine: 'not a repository test file; not run', ...command }])
       continue
     }
     const run = await runFile(io, file, root, runner)
     const kind = run.kind === 'pass' && run.executed < 1 ? 'unknown' : run.kind
-    entries.push([file, { file, kind, endLine: run.endLine }])
+    entries.push([file, { file, kind, endLine: run.endLine, ...command }])
   }
   return Object.fromEntries(entries)
 }

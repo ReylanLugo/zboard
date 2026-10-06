@@ -94,7 +94,9 @@ test('the judge runs cited tests through the configured command; a recognised pa
   const w = installWorld(on)
   const io = await judged(w, PYTEST_GREEN)
   expect(w.runs).toContainEqual([...PYTEST, 'tests/test_export.py'])
-  expect((await readPlan(io)).changes.a?.verify?.findings[0]?.verdict).toBe('true')
+  const finding = (await readPlan(io)).changes.a?.verify?.findings[0]
+  expect(finding?.verdict).toBe('true')
+  expect(finding?.evidence).toContain('uv run pytest tests/test_export.py: === 3 passed in 0.2s ===')
 })
 
 test('a custom runner whose output names no passed tests can never prove true', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
