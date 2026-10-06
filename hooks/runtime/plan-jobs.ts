@@ -1,6 +1,7 @@
 import { onProposalAccepted } from './plan-apply.ts'
 import { brainstormJob } from './plan-brainstorm.ts'
 import { draftJob } from './plan-draft.ts'
+import { explainJob } from './plan-explain.ts'
 import { continuePlanGroups } from './plan-forecast.ts'
 import { defineJob } from './plan-runner.ts'
 
@@ -10,6 +11,7 @@ let isWired = false
 export function installPlanJobs(): void {
   defineJob('draft', draftJob)
   defineJob('brainstorm', brainstormJob)
+  defineJob('explain', explainJob)
   if (isWired) return
   isWired = true
   onProposalAccepted(continuePlanGroups)
