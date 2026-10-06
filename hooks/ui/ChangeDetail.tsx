@@ -14,6 +14,8 @@ import type { ChangesTab, ChangesUi } from '../runtime/ui-types.ts'
 import { act, composeComment, selectArtifact, setTab } from './changes-actions.ts'
 import { defaultArtifact, historyRows, readinessLine, stepperMarks, stepperText, uncoveredRequirements } from './changes-model.ts'
 import { DiagramsTab } from './DiagramsTab.tsx'
+import { DiffView } from './DiffView.tsx'
+import { QaView, showsQa } from './QaView.tsx'
 import type { Els } from './els.ts'
 
 export interface DetailProps {
@@ -150,6 +152,14 @@ function TabBody(els: Els, _io: Io, _ctx: Ctx, props: DetailProps): RenderElemen
   }
 }
 
+function Overlays(els: Els, io: Io, ctx: Ctx, props: DetailProps): RenderElement[] {
+  const { rec } = props
+  return [
+    ...(rec.proposal === undefined ? [] : [DiffView(els, io, ctx, rec, rec.proposal)]),
+    ...(showsQa(rec) ? [QaView(els, io, ctx, rec)] : []),
+  ]
+}
+
 export function ChangeDetail(els: Els, io: Io, ctx: Ctx, props: DetailProps): RenderElement {
   const { Box } = els
   return (
@@ -158,6 +168,7 @@ export function ChangeDetail(els: Els, io: Io, ctx: Ctx, props: DetailProps): Re
       {Stepper(els, io, props.rec, props.ui)}
       {Readiness(els, props.rec)}
       {Toolbar(els, io, ctx, props.rec)}
+      {Overlays(els, io, ctx, props)}
       {Tabs(els, io, props.ui)}
       {TabBody(els, io, ctx, props)}
     </Box>
