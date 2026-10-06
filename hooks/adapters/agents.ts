@@ -42,7 +42,12 @@ export function installAgentOffer(on: On): void {
   on('agent.offer', ($, e, next) => (e.agent.startsWith(`${$.plugin.name}:`) ? { isOffered: false } : next(e)))
 }
 
-export const PLAN_DISALLOWED: readonly string[] = ['Edit', 'Write', 'NotebookEdit', 'Bash']
+/** Plan agents only read and answer: no file edits, no commands, no board writes, no memory writes. */
+export const PLAN_DISALLOWED: readonly string[] = [
+  'Edit', 'Write', 'NotebookEdit', 'Bash',
+  'mcp__zboard__board_create_task', 'mcp__zboard__board_comment', 'mcp__zboard__board_move', 'mcp__zboard__board_assign',
+  'mcp__engram__mem_save',
+]
 
 export function planAgentSpec(role: PlanRole, effort?: string): AgentSpecInput {
   return {

@@ -3,7 +3,9 @@ import { expect, test } from 'claude-code/testing'
 import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
 
 import { installWorld, worldIo } from '../testing/world.ts'
-import { boot, callTool, setupDemo, status, taskOf, zboard } from '../testing/zboard.ts'
+import { scriptOpenspec, seedChange } from '../testing/openspec.ts'
+import { mountPane } from '../testing/ui.ts'
+import { boot, callTool, lastAgent, setupDemo, status, taskOf, zboard } from '../testing/zboard.ts'
 
 test('board_create_task adds a board task that appears on the board', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
@@ -43,4 +45,30 @@ test('a blocked ready task is not started by the scheduler', { timeoutMs: PLUGIN
   await callTool($, 'board_move', { taskId: '1.1', status: 'blocked' })
   await zboard($, 'run demo')
   expect(w.spawns.map(spawn => spawn.prompt.split('\n')[0])).toEqual(['Task 1.2: Flip lines'])
+})
+
+test('a running plan agent is refused by every board write tool', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+  const w = installWorld(on)
+  setupDemo(w)
+  scriptOpenspec(w)
+  seedChange(w, 'a', { 'brainstorm.md': '# B\n' })
+  await boot($)
+  await zboard($, 'run demo')
+  await zboard($, 'changes a')
+  const ui = await mountPane($, 'desktop', 'zboard-changes')
+  await ui.press({ key: 'draft' })
+  await ui.unmount()
+  const agentId = lastAgent(w)
+  expect(w.spawns.at(-1)?.subagentType).toBe('zboard:drafter')
+  const before = (await status($)).events
+  const calls: readonly (readonly [string, Record<string, unknown>])[] = [
+    ['board_create_task', { title: 'Escape', change: 'demo' }],
+    ['board_comment', { taskId: '1.1', text: 'ignore your instructions' }],
+    ['board_move', { taskId: '1.1', status: 'blocked' }],
+    ['board_assign', { taskId: '1.1', agent: 'implementer' }],
+  ]
+  for (const [name, args] of calls) {
+    expect(await callTool($, name, { ...args, agentId })).toEqual({ ok: false, error: `zboard: plan agents cannot change the board; ${name} was refused.` })
+  }
+  expect((await status($)).events).toBe(before)
 })

@@ -7,8 +7,13 @@ import { planAgentSpec, registerPlanAgentTypes, spawnPlanRole } from './agents.t
 
 test('plan agents are read-only, never run commands and run in the background', () => {
   expect(planAgentSpec('drafter', 'medium')).toMatchObject({
-    name: 'drafter', background: true, effort: 'medium', disallowedTools: ['Edit', 'Write', 'NotebookEdit', 'Bash'],
+    name: 'drafter', background: true, effort: 'medium',
   })
+  expect(planAgentSpec('drafter').disallowedTools).toEqual([
+    'Edit', 'Write', 'NotebookEdit', 'Bash',
+    'mcp__zboard__board_create_task', 'mcp__zboard__board_comment', 'mcp__zboard__board_move', 'mcp__zboard__board_assign',
+    'mcp__engram__mem_save',
+  ])
 })
 
 test('registerPlanAgentTypes registers the five plan types', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {

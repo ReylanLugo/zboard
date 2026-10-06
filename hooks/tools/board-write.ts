@@ -4,7 +4,9 @@ import type { Outcome } from '../domain/interactions.ts'
 import { addComment, assignTask, createTask, moveTask } from '../domain/interactions.ts'
 import type { Board } from '../domain/types.ts'
 import { ROLES, TASK_STATUSES } from '../domain/types.ts'
+import { changeOfAgent } from '../plan/plan-project.ts'
 import { append, readBoard } from '../runtime/log-store.ts'
+import { readPlan } from '../runtime/plan-store.ts'
 import type { ToolAnswer } from './board-read.ts'
 import { invalid, text } from './validate.ts'
 
@@ -44,7 +46,15 @@ export async function registerWriteTools(io: Io): Promise<void> {
 /** A board tool call's input: the tool's own arguments plus the calling agent, if any. */
 export type ToolInput = Readonly<Record<string, unknown>> & { readonly agentId?: string }
 
+/** Plan agents only read and answer (D4): a board write from an active plan agent is refused. */
+async function planAgentDeny(io: Io, e: ToolInput, tool: string): Promise<ToolAnswer | undefined> {
+  if (e.agentId === undefined || changeOfAgent(await readPlan(io), e.agentId) === undefined) return undefined
+  return { deny: `zboard: plan agents cannot change the board; ${tool} was refused.` }
+}
+
 export async function createTaskTool(io: Io, e: ToolInput): Promise<ToolAnswer> {
+  const refused = await planAgentDeny(io, e, 'board_create_task')
+  if (refused !== undefined) return refused
   const change = text(e, 'change')
   const title = text(e, 'title', TITLE_MAX)
   if (change === undefined) return invalid('change')
@@ -53,6 +63,8 @@ export async function createTaskTool(io: Io, e: ToolInput): Promise<ToolAnswer> 
 }
 
 export async function commentTool(io: Io, e: ToolInput): Promise<ToolAnswer> {
+  const refused = await planAgentDeny(io, e, 'board_comment')
+  if (refused !== undefined) return refused
   const taskId = text(e, 'taskId')
   const body = typeof e.text === 'string' ? e.text : undefined
   if (taskId === undefined) return invalid('taskId')
@@ -62,6 +74,8 @@ export async function commentTool(io: Io, e: ToolInput): Promise<ToolAnswer> {
 }
 
 export async function moveTool(io: Io, e: ToolInput): Promise<ToolAnswer> {
+  const refused = await planAgentDeny(io, e, 'board_move')
+  if (refused !== undefined) return refused
   const taskId = text(e, 'taskId')
   const status = text(e, 'status')
   if (taskId === undefined) return invalid('taskId')
@@ -70,6 +84,8 @@ export async function moveTool(io: Io, e: ToolInput): Promise<ToolAnswer> {
 }
 
 export async function assignTool(io: Io, e: ToolInput): Promise<ToolAnswer> {
+  const refused = await planAgentDeny(io, e, 'board_assign')
+  if (refused !== undefined) return refused
   const taskId = text(e, 'taskId')
   const agent = text(e, 'agent')
   if (taskId === undefined) return invalid('taskId')
