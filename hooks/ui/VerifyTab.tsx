@@ -28,10 +28,10 @@ export function VerifyTab(els: Els, io: Io, ctx: Ctx, rec: ChangeRecord): Render
       {findings.map(f => (
         <Box key={`finding:${f.id}`} flexDirection="column">
           <Text>{`${f.requirement}${f.scenario === undefined ? '' : ` / ${f.scenario}`} · ${f.verdict}${f.resolution === undefined ? '' : ` → ${f.resolution}`}${f.linkedTask === undefined ? '' : ` (task ${f.linkedTask})`}`}</Text>
-          <Text dimColor>{f.evidence.join('; ') || 'no evidence'}</Text>
+          <Text dimColor>{(Array.isArray(f.evidence) ? f.evidence.join('; ') : '') || 'no evidence'}</Text>
           {f.verdict === 'true' || f.resolution !== undefined ? null : (
             <Box key={`resolutions:${f.id}`} flexDirection="row" gap={1}>
-              {ALLOWED[f.verdict].map(resolution => (
+              {(ALLOWED[f.verdict] ?? []).map(resolution => (
                 <Button key={`resolve:${f.id}:${resolution}`} label={resolution.replace('_', ' ')} onPress={act(io, rec, 'resolve', () => resolveFinding(io, ctx, rec.id, f.id, resolution))} />
               ))}
             </Box>

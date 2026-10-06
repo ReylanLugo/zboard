@@ -5,8 +5,12 @@ import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
 import { READY_FILES, READY_SPEC, scriptOpenspec, seedChange } from '../testing/openspec.ts'
 import { SURFACES, labelOf, mountPane } from '../testing/ui.ts'
 import { installWorld } from '../testing/world.ts'
+import type { PlanLog } from '../plan/plan-log.ts'
+import { EMPTY_PLAN_LOG, appendPlanEvents } from '../plan/plan-log.ts'
+import type { Finding } from '../plan/types.ts'
 import { boot, json, lastAgent, stopAgent, zboard } from '../testing/zboard.ts'
 
+const PLAN_KEY = { plugin: 'zboard', key: 'plan' } as const
 const SPEC = `${READY_SPEC}\n### Requirement: Import CSV\nThe system SHALL import.\n\n#### Scenario: Import\n- **WHEN** x\n- **THEN** y\n`
 const DONE = '## 1. Core\n\n- [x] 1.1 Export CSV writer [req: Export CSV]\n  Acceptance: a\n- [x] 1.2 Import CSV reader [req: Import CSV]\n  Acceptance: b\n'
 const FOUR_GROUPS = [1, 2, 3, 4].map(n => `## ${n}. G${n}\n\n- [ ] ${n}.1 Export CSV part ${n} [req: Export CSV]\n  Acceptance: x\n`).join('\n')
@@ -78,3 +82,27 @@ for (const surface of SURFACES) {
     await ui.unmount()
   })
 }
+
+test('the verify tab draws a finding that arrived without an evidence array', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+  const w = installWorld(on)
+  const broken = { id: 'r:export-csv', requirement: 'Export CSV', verdict: 'false' } as unknown as Finding
+  let isArmed = false
+  // Served straight from the engine's plan state, past the mirror's validation: the tab itself must survive it.
+  on('state.get', async (_$, e, next) => {
+    const held = await next(e)
+    if (!isArmed || e.plugin !== PLAN_KEY.plugin || e.key !== PLAN_KEY.key) return held
+    const current = (held.value as { value?: PlanLog }).value ?? EMPTY_PLAN_LOG
+    const { log } = appendPlanEvents(current, [{ type: 'PlanRestored', changeId: 'a', revisions: [], verify: { runs: 1, passed: false, findings: [broken] } }], 1)
+    return { ...held, value: { ...held.value, value: log } } as typeof held
+  })
+  scriptOpenspec(w)
+  seedChange(w, 'a', { ...READY_FILES, 'specs/export/spec.md': SPEC, 'tasks.md': DONE })
+  await boot($)
+  await zboard($, 'changes a')
+  isArmed = true
+  const ui = await mountPane($, 'terminal', 'zboard-changes')
+  await ui.press({ key: 'tab:verify' })
+  expect((await ui.find({ key: 'verify-state' }))?.text).toBe('verify run 1 · not passed')
+  expect((await ui.find({ key: 'finding:r:export-csv' }))?.text).toContain('no evidence')
+  await ui.unmount()
+})
