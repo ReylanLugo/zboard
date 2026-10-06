@@ -36,7 +36,11 @@ export interface Instructions {
 export interface Validation {
   readonly valid: boolean
   readonly output: string
+  /** True when the only failure is openspec's "no deltas" issue, which every change has until its first delta spec. */
+  readonly onlyNoDelta: boolean
 }
+
+const NO_DELTA = 'Change must have at least one delta'
 
 interface Ran {
   readonly exitCode: number
@@ -118,6 +122,17 @@ const issuesText = (items: readonly Record<string, unknown>[], fallback: string)
   return lines.length > 0 ? lines.join('\n') : fallback.trim().slice(0, OUTPUT_MAX)
 }
 
+const issuesOf = (items: readonly Record<string, unknown>[]): Record<string, unknown>[] =>
+  items.flatMap(item => (Array.isArray(item.issues) ? item.issues : []).filter(isRecord))
+
+/** Every reported issue, of every failing item, is the no-delta one; any other issue keeps the result blocking. */
+function isOnlyNoDelta(items: readonly Record<string, unknown>[]): boolean {
+  const failing = items.filter(item => item.valid !== true)
+  const issues = issuesOf(items)
+  return failing.length > 0 && failing.every(item => issuesOf([item]).length > 0)
+    && issues.every(issue => String(issue.message ?? '').startsWith(NO_DELTA))
+}
+
 export async function validateChange(io: Io, id: string): Promise<CliResult<Validation>> {
   if (!isPlanChangeName(id)) return invalidName(id)
   const ran = await run(io, ['validate', id, '--strict', '--json'])
@@ -125,7 +140,7 @@ export async function validateChange(io: Io, id: string): Promise<CliResult<Vali
   const items = isRecord(value) && Array.isArray(value.items) ? value.items.filter(isRecord) : undefined
   if (items === undefined) return fail(ran.output)
   const valid = ran.exitCode === 0 && items.length > 0 && items.every(item => item.valid === true)
-  return { ok: true, value: { valid, output: valid ? 'valid' : issuesText(items, ran.output) } }
+  return { ok: true, value: { valid, output: valid ? 'valid' : issuesText(items, ran.output), onlyNoDelta: !valid && isOnlyNoDelta(items) } }
 }
 
 export async function newChange(io: Io, id: string, schema: string = SCHEMA): Promise<CliResult<true>> {

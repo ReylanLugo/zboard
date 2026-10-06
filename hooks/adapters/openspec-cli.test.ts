@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 
 import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
 
-import { INSTRUCTIONS_TASKS_JSON, LIST_JSON, STATUS_JSON, VALIDATE_OK_JSON, VALIDATE_UNKNOWN_JSON, scriptOpenspec, validateInvalidJson } from '../testing/openspec.ts'
+import { INSTRUCTIONS_TASKS_JSON, LIST_JSON, STATUS_JSON, VALIDATE_OK_JSON, VALIDATE_UNKNOWN_JSON, scriptOpenspec, validateInvalidJson, validateNoDeltaJson } from '../testing/openspec.ts'
 import { argvIs, installWorld, worldIo } from '../testing/world.ts'
 import { archiveCli, changeStatus, instructions, listChanges, newChange, validateChange } from './openspec-cli.ts'
 
@@ -50,9 +50,11 @@ test('validate: valid, invalid with its issues, and an unknown item as a failure
   w.rules.push({ match: argvIs('openspec', 'validate', 'good'), answer: { stdout: VALIDATE_OK_JSON } })
   w.rules.push({ match: argvIs('openspec', 'validate', 'bad'), answer: { exitCode: 1, stdout: validateInvalidJson('bad', 'Requirement must have at least one scenario') } })
   w.rules.push({ match: argvIs('openspec', 'validate', 'gone'), answer: { exitCode: 1, stdout: VALIDATE_UNKNOWN_JSON } })
+  w.rules.push({ match: argvIs('openspec', 'validate', 'early'), answer: { exitCode: 1, stdout: validateNoDeltaJson('early') } })
   const io = worldIo(w)
-  expect(await validateChange(io, 'good')).toEqual({ ok: true, value: { valid: true, output: 'valid' } })
-  expect(await validateChange(io, 'bad')).toEqual({ ok: true, value: { valid: false, output: 'ERROR: specs/x/spec.md Requirement must have at least one scenario' } })
+  expect(await validateChange(io, 'good')).toEqual({ ok: true, value: { valid: true, output: 'valid', onlyNoDelta: false } })
+  expect(await validateChange(io, 'bad')).toEqual({ ok: true, value: { valid: false, output: 'ERROR: specs/x/spec.md Requirement must have at least one scenario', onlyNoDelta: false } })
+  expect(await validateChange(io, 'early')).toEqual({ ok: true, value: { valid: false, output: 'ERROR: Change must have at least one delta. No deltas found', onlyNoDelta: true } })
   expect((await validateChange(io, 'gone')).ok).toBe(false)
   expect(w.runs[0]).toEqual(['openspec', 'validate', 'good', '--strict', '--json'])
 })

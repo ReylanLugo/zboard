@@ -60,6 +60,14 @@ export const validateInvalidJson = (id: string, issue: string): string => JSON.s
   version: '1.0',
 })
 
+/** The message openspec 1.13.1 `validate --strict --json` gives a change with no delta spec yet (exit 1). */
+export const NO_DELTA_MESSAGE = 'Change must have at least one delta. No deltas found'
+
+export const validateNoDeltaJson = (id: string): string => JSON.stringify({
+  items: [{ id, type: 'change', valid: false, issues: [{ level: 'ERROR', path: '', message: NO_DELTA_MESSAGE }], durationMs: 5 }],
+  version: '1.0',
+})
+
 /** Recorded with openspec 1.13.1 in a scratch repo on 2026-10-06, trimmed to the fields zboard reads. */
 export const archiveOkJson = (id: string): string => JSON.stringify({
   archive: { change: id, archivedAs: `2026-10-06-${id}`, specsUpdated: true, totals: { added: 1, modified: 0, removed: 0, renamed: 0 } },
@@ -138,6 +146,15 @@ function archiveIn(w: World, id: string): ProcessAnswer {
   return { stdout: archiveOkJson(id) }
 }
 
+const hasDeltaSpec = (w: World, id: string): boolean =>
+  [...w.files.keys()].some(key => key.startsWith(`${CHANGES}/${id}/specs/`))
+
+/** Like the real CLI, a change without any delta spec fails `--strict` validation before anything else. */
+function validateIn(w: World, s: OpenspecScript, id: string): ProcessAnswer {
+  if (!hasDeltaSpec(w, id)) return { exitCode: 1, stdout: validateNoDeltaJson(id) }
+  return s.valid ? { stdout: VALIDATE_OK_JSON.replace('zboard-changes-viewer', id) } : { exitCode: 1, stdout: validateInvalidJson(id, s.issue) }
+}
+
 /** Mutable on purpose: a test flips `valid` or sets `archive` between steps. */
 export interface OpenspecScript {
   valid: boolean
@@ -152,7 +169,7 @@ export function scriptOpenspec(w: World, script: Partial<OpenspecScript> = {}): 
     { match: argvIs('openspec', 'list'), answer: () => s.list ?? { stdout: JSON.stringify({ changes: changeNames(w).map(name => ({ name, completedTasks: 0, totalTasks: 0, lastModified: '2026-10-06T00:00:00.000Z', status: 'in-progress' })) }) } },
     { match: argvIs('openspec', 'status'), answer: argv => ({ stdout: JSON.stringify(statusOf(w, optionOf(argv, '--change'))) }) },
     { match: argvIs('openspec', 'instructions'), answer: argv => ({ stdout: JSON.stringify(instructionsOf(w, argv[2] ?? '', optionOf(argv, '--change'))) }) },
-    { match: argvIs('openspec', 'validate'), answer: argv => (s.valid ? { stdout: VALIDATE_OK_JSON.replace('zboard-changes-viewer', argv[2] ?? '') } : { exitCode: 1, stdout: validateInvalidJson(argv[2] ?? '', s.issue) }) },
+    { match: argvIs('openspec', 'validate'), answer: argv => validateIn(w, s, argv[2] ?? '') },
     { match: argvIs('openspec', 'new', 'change'), answer: argv => { w.files.set(`${CHANGES}/${argv[3] ?? ''}/.openspec.yaml`, `schema: ${optionOf(argv, '--schema')}\n`); return {} } },
     { match: argvIs('openspec', 'archive'), answer: argv => s.archive ?? archiveIn(w, argv[2] ?? '') },
   )

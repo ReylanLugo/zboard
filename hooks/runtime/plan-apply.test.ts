@@ -130,3 +130,39 @@ test('a proposal path outside the scope is refused again at apply time', { timeo
   expect(rec?.proposal).toBeUndefined()
   expect(rec?.errors.at(-1)?.message).toBe('refused path openspec/specs/export/spec.md: only openspec archive writes openspec/specs/')
 })
+
+test('a change with no delta spec yet keeps an accepted brainstorm and proposal despite the no-delta validation issue', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+  const w = installWorld(on)
+  installPlanJobs()
+  scriptOpenspec(w)
+  scriptGit(w)
+  scriptRm(w)
+  const NEW = 'fresh-idea'
+  seedChange(w, NEW, {})
+  const io = worldIo(w)
+  await refreshChange(io, NEW)
+  for (const artifact of ['brainstorm', 'proposal']) {
+    const path = `openspec/changes/${NEW}/${artifact}.md`
+    await proposeFiles(io, NEW, { kind: 'draft', artifact }, 'comment', [{ path, content: `# ${artifact}\n` }])
+    await acceptProposal(io, ctx, NEW)
+    expect(w.files.get(`/repo/${path}`)).toBe(`# ${artifact}\n`)
+  }
+  expect((await readPlan(io)).changes[NEW]?.revisions.map(r => r.artifact)).toEqual(['brainstorm', 'proposal'])
+  expect(w.spawns).toEqual([])
+})
+
+test('a change with specs still restores a proposal whose validation fails for another reason', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+  const w = installWorld(on)
+  const { io, script } = await setup(w)
+  script.valid = false
+  script.issue = 'Change must have at least one delta. No deltas found'
+  await propose(io, { [DESIGN]: 'design one\n' })
+  await acceptProposal(io, ctx, ID)
+  expect(w.files.get(`/repo/${DESIGN}`)).toBe(READY_FILES['design.md'])
+  expect(commits(w)).toEqual([])
+  script.issue = 'Requirement must have at least one scenario'
+  await propose(io, { [DESIGN]: 'design two\n' })
+  await acceptProposal(io, ctx, ID)
+  expect(w.files.get(`/repo/${DESIGN}`)).toBe(READY_FILES['design.md'])
+  expect((await readPlan(io)).changes[ID]?.revisions).toEqual([])
+})

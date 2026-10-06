@@ -1,7 +1,8 @@
 import type { Io } from './io.ts'
 
-import { readCurrent, removeFile, writeText } from '../adapters/artifacts.ts'
+import { listFiles, readCurrent, removeFile, writeText } from '../adapters/artifacts.ts'
 import { commitTask } from '../adapters/git.ts'
+import type { CliResult, Validation } from '../adapters/openspec-cli.ts'
 import { validateChange } from '../adapters/openspec-cli.ts'
 import { parseTasksMd } from '../adapters/tasks-md.ts'
 import { actionsFor } from '../plan/lifecycle.ts'
@@ -33,6 +34,17 @@ async function restore(io: Io, p: DiffProposal): Promise<void> {
   }
 }
 
+/**
+ * Whether a validation result blocks an accepted proposal. openspec reports "no deltas" for every
+ * change until its first delta spec exists, so that issue alone does not block while specs/ is empty.
+ */
+async function isBlocking(io: Io, changeId: string, checked: CliResult<Validation>): Promise<boolean> {
+  if (!checked.ok) return true
+  if (checked.value.valid) return false
+  if (!checked.value.onlyNoDelta) return true
+  return (await listFiles(io, `${changeDir(changeId)}/specs`)).length > 0
+}
+
 /** The tasks.md label a fix_code/add_test proposal added, to link it to its finding. */
 function addedTask(before: string | null, after: string | undefined): string | undefined {
   if (after === undefined) return undefined
@@ -62,7 +74,7 @@ async function applyAccepted(io: Io, ctx: Ctx, changeId: string): Promise<void> 
   }
   for (const file of p.files) await writeText(io, file.path, file.after)
   const checked = await validateChange(io, changeId)
-  if (!checked.ok || !checked.value.valid) {
+  if (await isBlocking(io, changeId, checked)) {
     const output = checked.ok ? checked.value.output : checked.output
     await restore(io, p)
     await appendPlan(io, [{ type: 'PlanError', changeId, hook: 'validate', message: output }, { type: 'ProposalRejected', changeId, proposalId: p.id }])
