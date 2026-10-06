@@ -2,7 +2,8 @@
 
 A Claude Code mod that shows every task of an OpenSpec change on a board and drives each task through
 research → plan → tdd → code → review (→ refactor loop) with subagents, gates it checks mechanically,
-scoped `ptest` runs, one commit per task, and the `tasks.md` checkbox flipped only after a verified commit.
+scoped test runs (`ptest` by default, or your own test command), one commit per task, and the `tasks.md`
+checkbox flipped only after a verified commit.
 
 ## Install
 
@@ -23,7 +24,7 @@ or add the folder as a plugin marketplace and install it, so `/reload-plugins` r
 | `/zboard run <change>/<label>` | Run one task only |
 | `/zboard pause` | Let running phases finish; start nothing new until the next `/zboard run` |
 | `/zboard set <label> <agent> <model> <effort>` | Per-task model/effort for one agent role, e.g. `/zboard set 2.1 implementer opus 5.5 high` |
-| `/zboard config` | Effective model and effort per agent, with the level each value came from |
+| `/zboard config` | Effective model and effort per agent, with the level each value came from, and the effective test command |
 | `/zboard import-odd <feature>` | Preview a gentle-ai ODD feature as an OpenSpec change; `--confirm <digest>` writes it |
 
 Board keys (while the pane holds the keyboard): Tab/arrows move between cards, Enter opens the detail,
@@ -59,8 +60,9 @@ Rules the viewer enforces:
 - Readiness: `validate`, every requirement has a scenario, every task names a requirement (by name or `[req: <name>]`),
   no dependency cycle, task text ≤ 600 characters and ≤ 12 tasks per group, and acceptance criteria
   (`Acceptance:` in `tasks.md` or an **Acceptance** line in the task's `plan.md` section).
-- Verify runs only when every task is checked. The judge's cited tests run as `ptest <file>`; a `true` verdict without
-  `path:line` evidence or with a test that did not pass is `no_evidence`. Archive needs a passed verify run, every
+- Verify runs only when every task is checked. The judge's cited tests run through the test command (`ptest <file>` by
+  default); a `true` verdict without `path:line` evidence, or with a test that did not pass or whose output reports no
+  executed test, is `no_evidence`. Archive needs a passed verify run, every
   finding-linked task done and the retrospective accepted.
 - Conceptual diagrams render through `mmdc` when installed (`npm i -g @mermaid-js/mermaid-cli`); PNGs for the terminal
   go to `/tmp/zboard-mermaid`, never into the repository.
@@ -76,11 +78,12 @@ the drafter writes `tasks.md` with sonnet 5.5/medium).
 - Only tasks from `tasks.md` run; tasks created with `board_create_task` or native `TaskCreate` are tracked.
 - A task depends on the tasks of the previous `##` section unless its text says `depends on 1.2` or `BLOCKED on 1.2`.
 - Gates: research needs `path:line` evidence; plan needs allowed files and test files inside the repo;
-  tdd must fail only on the new tests; code and refactor must pass `ptest`; review must return valid
+  tdd must fail only on the new tests; code and refactor must pass the test command; review must return valid
   verdict JSON. A failed gate is retried once with the reason, then the task needs a decision.
-- Tests run only as `ptest <file>` from the repository root. Exit 70/75/124 or a timeout is retried once and
-  never counts as a pass.
-- When the whole change is done, run the integrated `ptest --full` gate yourself before handing off.
+- Test files run one at a time from the repository root through the test command (see [Test command](#test-command)).
+  A test file must be a plain repository-relative path (not absolute, no `..`, not starting with `-`) or it is
+  never run. A run that cannot finish never counts as a pass.
+- When the whole change is done, run your project's full test suite (with ptest: `ptest --full`) before handing off.
 
 ## Configuration
 
@@ -92,6 +95,36 @@ Precedence, most specific first: `/zboard set` > `.zboard/config.json` > the plu
 
 Defaults: researcher sonnet 5.5/medium, planner opus 5.5/xhigh, tdd sonnet 5.5/low, implementer
 sonnet 5.5/medium, reviewer opus 5.5/high, refactorer sonnet 5.5/medium.
+
+### Test command
+
+With no `testCommand`, zboard runs each test file as `ptest <file>` (timeout 10 minutes; exit 70/75/124 or a
+timeout is retried once and never counts as a pass). zboard does not install ptest: either have it on your `PATH`
+or set your own command in `.zboard/config.json`:
+
+```json
+{ "testCommand": ["uv", "run", "pytest", "{file}"], "testTimeoutMs": 300000 }
+```
+
+```json
+{ "testCommand": ["npx", "vitest", "run", "{file}"] }
+```
+
+- `testCommand` is an argv array, never run through a shell: 1–32 non-empty strings, each at most 512 characters.
+  Every `{file}` inside an element is replaced by the repository-relative test file; with no `{file}`, the file is
+  appended as the last element.
+- `testTimeoutMs` is optional: an integer from 1000 to 3600000 (default 600000). Claude Code kills a process after
+  ten minutes, so values above 600000 are capped there with a warning. Without `testCommand` it is ignored.
+- An invalid value shows a config warning in the board header and in `/zboard config`, and ptest stays in use.
+- Exit 0 is a pass and any other exit is a failure; a run that times out or cannot start is retried once, then the
+  result is incomplete. Failing tests are read from pytest `FAILED …` and vitest `FAIL … > …` lines.
+- The judge's `true` verdict needs a cited test that passed with at least one executed test. zboard reads that
+  count from ptest's end line and from pytest (`N passed` summary), vitest (`Tests  N passed`), jest
+  (`Tests: N passed`), go test (`ok <pkg>` lines) and cargo (`test result: ok. N passed`) output. Any other
+  runner's output counts as zero executed tests, so its findings can at best be `no_evidence`, which you can
+  accept without evidence.
+- Pick a command that runs a single test file. `go test` runs packages rather than files, so it does not fit a
+  per-file `testCommand` well.
 
 ## Engram
 
