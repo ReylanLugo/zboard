@@ -2,7 +2,8 @@ import type { Io } from './io.ts'
 
 import { changeFiles, listFiles } from '../adapters/artifacts.ts'
 import { judgePrompt } from '../adapters/prompts-plan.ts'
-import { runFile, testsExecuted } from '../adapters/test-runner.ts'
+import { readProjectConfig } from '../adapters/config-io.ts'
+import { runFile, runnerOf } from '../adapters/test-runner.ts'
 import type { JudgeRaw } from '../plan/contracts.ts'
 import { parseJudge } from '../plan/contracts.ts'
 import type { TestEvidence } from '../plan/findings.ts'
@@ -46,17 +47,22 @@ async function isRegularFile(io: Io, path: string): Promise<boolean> {
   }
 }
 
-/** D13.2: zboard runs every citable cited test file once (ptest retries 70/75/124 itself); the judge never runs commands. */
+/**
+ * D13.2: zboard runs every citable cited test file once with the project's test command
+ * (ptest by default; a run that cannot finish is retried once); the judge never runs commands.
+ * A pass proves nothing unless the runner's output reports at least one executed test.
+ */
 async function evidenceFor(io: Io, files: readonly string[]): Promise<Record<string, TestEvidence>> {
   const root = await io.session.root()
+  const runner = runnerOf(await readProjectConfig(io))
   const entries: (readonly [string, TestEvidence])[] = []
   for (const file of [...new Set(files)]) {
     if (!(await isRegularFile(io, file))) {
       entries.push([file, { file, kind: 'unknown', endLine: 'not a repository test file; not run' }])
       continue
     }
-    const run = await runFile(io, file, root)
-    const kind = run.kind === 'pass' && testsExecuted(run.endLine) < 1 ? 'unknown' : run.kind
+    const run = await runFile(io, file, root, runner)
+    const kind = run.kind === 'pass' && run.executed < 1 ? 'unknown' : run.kind
     entries.push([file, { file, kind, endLine: run.endLine }])
   }
   return Object.fromEntries(entries)

@@ -3,8 +3,9 @@ import type { Io } from './io.ts'
 import type { Baseline } from '../adapters/git.ts'
 import { snapshot, touchedBetween } from '../adapters/git.ts'
 import { tasksPath } from '../adapters/openspec.ts'
-import { runScoped } from '../adapters/test-runner.ts'
-import type { GateOutcome } from '../domain/gates.ts'
+import { readProjectConfig } from '../adapters/config-io.ts'
+import { runScoped, runnerOf } from '../adapters/test-runner.ts'
+import type { GateOutcome, TestRun } from '../domain/gates.ts'
 import { fail, greenGate, planGate, researchGate, reviewGate, tddGate, tddTestFiles, touchedGate } from '../domain/gates.ts'
 import { unique } from '../domain/json.ts'
 import { activeRun } from '../domain/project.ts'
@@ -39,6 +40,11 @@ function zboardChanges(board: Board, task: Task, baseline: Baseline, after: Base
   return path => path === flips || (committed.has(path) && baseline[path] !== undefined && after[path] === undefined)
 }
 
+/** Runs the files with the project's test command (ptest when none is configured). */
+async function runTests(io: Io, files: readonly string[], root: string): Promise<TestRun> {
+  return runScoped(io, files, root, runnerOf(await readProjectConfig(io)))
+}
+
 export async function evaluateStop(
   io: Io, board: Board, task: Task, run: AgentRun, answer: string, root: string,
 ): Promise<Evaluation> {
@@ -56,13 +62,13 @@ export async function evaluateStop(
       return { outcome: touchedGate(touched, [], 'review') ?? reviewGate(answer), touched }
     case 'tdd': {
       const testFiles = unique([...task.testFiles, ...tddTestFiles(answer, root)])
-      const outcome = touchedGate(touched, testFiles, 'tdd') ?? tddGate(await runScoped(io, testFiles, root), answer)
+      const outcome = touchedGate(touched, testFiles, 'tdd') ?? tddGate(await runTests(io, testFiles, root), answer)
       return { outcome, touched, testFiles }
     }
     case 'code':
     case 'refactor': {
       const scope = touchedGate(touched, [...task.allowedFiles, ...task.testFiles], run.phase)
-      return { outcome: scope ?? greenGate(await runScoped(io, task.testFiles, root), run.phase), touched }
+      return { outcome: scope ?? greenGate(await runTests(io, task.testFiles, root), run.phase), touched }
     }
   }
 }

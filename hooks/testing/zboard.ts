@@ -89,7 +89,12 @@ export function scriptGit(w: World): Map<string, string> {
 }
 
 export function scriptPtest(w: World, answers: readonly ProcessAnswer[]): void {
-  for (const answer of answers) w.rules.push({ match: argvIs('ptest'), once: true, answer })
+  scriptRunner(w, ['ptest'], answers)
+}
+
+/** Answers the next runs of a test command whose argv starts with `prefix`, one answer per run. */
+export function scriptRunner(w: World, prefix: readonly string[], answers: readonly ProcessAnswer[]): void {
+  for (const answer of answers) w.rules.push({ match: argvIs(...prefix), once: true, answer })
 }
 
 export function setupDemo(w: World, tasksMd: string = ONE_TASK): Map<string, string> {
