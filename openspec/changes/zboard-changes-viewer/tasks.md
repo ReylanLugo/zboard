@@ -46,7 +46,7 @@
 
 - [x] 8.1 `/zboard changes [id]`, the `zboard-changes` pane, grouped list, header errors and isolation [req: Changes pane; List and detail layout; Error display and isolation; List changes by group]
 - [x] 8.2 Change detail: stepper, readiness bar, Summary, Specs, Tasks and History tabs [req: List and detail layout; Render existing artifacts]
-- [ ] 8.3 Diagrams tab: SVG on desktop, ASCII on terminal, explanation diagrams with Mermaid fallback [req: Structural diagrams; Mermaid rendering fallback; Explanation cached by fingerprint]
+- [x] 8.3 Diagrams tab: SVG on desktop, ASCII on terminal, explanation diagrams with Mermaid fallback [req: Structural diagrams; Mermaid rendering fallback; Explanation cached by fingerprint]
 - [ ] 8.4 Diff view and Q&A view [req: Diff view; Q&A view]
 - [ ] 8.5 Verify tab, forecast, critique, retry and archive controls [req: Per-finding resolution; Plan step forecast and per-group drafting; Optional critique; Archive preconditions]
 - [ ] 8.6 Keyboard map, Tab focus switching, disabled keys and `o` on the board [req: Keyboard]

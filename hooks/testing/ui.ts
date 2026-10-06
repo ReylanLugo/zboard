@@ -16,3 +16,28 @@ export const labelOf = async (ui: Finder, key: string): Promise<string | undefin
   const found = await ui.find({ key })
   return typeof found?.props.label === 'string' ? found.props.label : found?.text
 }
+
+type Node = { readonly type?: unknown; readonly props?: Record<string, unknown>; readonly children?: readonly unknown[] }
+
+const descendant = (nodes: readonly unknown[], type: string): Node | undefined => {
+  for (const node of nodes) {
+    if (typeof node !== 'object' || node === null) continue
+    const found = node as Node
+    if (found.type === type) return found
+    const deeper = descendant(found.children ?? [], type)
+    if (deeper !== undefined) return deeper
+  }
+  return undefined
+}
+
+type KeyFinder = { find: (query: { key: string }) => Promise<{ children: unknown[] } | undefined> }
+
+/**
+ * The first element of `type` under the element keyed `key`. (The kit's `in` scopes
+ * a search to a `Client` only, so a search inside a keyed Box walks its children.)
+ */
+export const findIn = async (ui: KeyFinder, key: string, type: string): Promise<{ props: Record<string, unknown> } | undefined> => {
+  const scope = await ui.find({ key })
+  const found = scope === undefined ? undefined : descendant(scope.children, type)
+  return found === undefined ? undefined : { props: found.props ?? {} }
+}

@@ -13,6 +13,7 @@ import { runChange } from '../runtime/plan-run.ts'
 import type { ChangesTab, ChangesUi } from '../runtime/ui-types.ts'
 import { act, composeComment, selectArtifact, setTab } from './changes-actions.ts'
 import { defaultArtifact, historyRows, readinessLine, stepperMarks, stepperText, uncoveredRequirements } from './changes-model.ts'
+import { DiagramsTab } from './DiagramsTab.tsx'
 import type { Els } from './els.ts'
 
 export interface DetailProps {
@@ -23,7 +24,7 @@ export interface DetailProps {
   readonly columns: number
 }
 
-export const TABS: readonly ChangesTab[] = ['summary', 'specs', 'tasks', 'history']
+export const TABS: readonly ChangesTab[] = ['summary', 'diagrams', 'specs', 'tasks', 'history']
 
 const TAB_TITLES: Readonly<Record<ChangesTab, string>> = {
   summary: 'Summary', diagrams: 'Diagrams', specs: 'Specs', tasks: 'Tasks', verify: 'Verify', history: 'History',
@@ -136,6 +137,8 @@ function HistoryTab(els: Els, rec: ChangeRecord): RenderElement {
 
 function TabBody(els: Els, _io: Io, _ctx: Ctx, props: DetailProps): RenderElement {
   switch (props.ui.tab) {
+    case 'diagrams':
+      return DiagramsTab(els, props)
     case 'specs':
       return SpecsTab(els, props.docs)
     case 'tasks':
