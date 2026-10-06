@@ -56,3 +56,16 @@ test('with green readiness and no critique, Run starts the board exactly as /zbo
   expect(w.spawns.map(spawn => spawn.subagentType)).toEqual(['zboard:researcher'])
   expect((await readPlan(io)).changes.a?.stage).toBe('executing')
 })
+
+test('a run that /zboard run refuses toasts the refusal and keeps the change ready', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+  const w = installWorld(on)
+  const io = await change(w)
+  expect((await readPlan(io)).changes.a?.stage).toBe('ready')
+  w.files.delete('/repo/openspec/changes/a/tasks.md')
+  expect(await runChange(io, ctx, 'a')).toBe('zboard: no tasks.md for change a')
+  expect(w.toasts.at(-1)).toBe('zboard: no tasks.md for change a')
+  expect(w.spawns).toEqual([])
+  const rec = (await readPlan(io)).changes.a
+  expect(rec?.runStarted).toBe(false)
+  expect(rec?.stage).toBe('ready')
+})
