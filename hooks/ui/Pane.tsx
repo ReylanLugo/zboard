@@ -2,6 +2,8 @@ import type { RenderElement } from 'claude-code'
 import type { Io } from '../runtime/io.ts'
 
 import { PANE_ID } from '../runtime/ctx.ts'
+import { openChanges } from '../runtime/plan-open.ts'
+import { isolatePlan } from '../runtime/plan-store.ts'
 import { cycleFilter, cycleView, raiseSelected, select, startComment, submitComment, toggleSelectedBlock } from './actions.ts'
 import type { Els, ViewProps } from './els.ts'
 import { filterLabel, visibleTasks } from './filter.ts'
@@ -22,6 +24,7 @@ function Toolbar(els: Els, io: Io, props: ViewProps): RenderElement {
       <Button key="comment" label="comment" hotkey="c" onPress={() => void startComment(io)} />
       <Button key="block" label="block" hotkey="b" onPress={() => void toggleSelectedBlock(io)} />
       <Button key="priority" label="priority" hotkey="p" onPress={() => void raiseSelected(io)} />
+      <Button key="changes" label="changes" hotkey="o" onPress={() => void isolatePlan(io, 'ui.board.changes', () => openChanges(io, props.board.changeId ?? undefined), '')} />
     </Box>
   )
 }

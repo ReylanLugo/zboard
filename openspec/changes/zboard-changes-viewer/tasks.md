@@ -49,7 +49,7 @@
 - [x] 8.3 Diagrams tab: SVG on desktop, ASCII on terminal, explanation diagrams with Mermaid fallback [req: Structural diagrams; Mermaid rendering fallback; Explanation cached by fingerprint]
 - [x] 8.4 Diff view and Q&A view [req: Diff view; Q&A view]
 - [x] 8.5 Verify tab, forecast, critique, retry and archive controls [req: Per-finding resolution; Plan step forecast and per-group drafting; Optional critique; Archive preconditions]
-- [ ] 8.6 Keyboard map, Tab focus switching, disabled keys and `o` on the board [req: Keyboard]
+- [x] 8.6 Keyboard map, Tab focus switching, disabled keys and `o` on the board [req: Keyboard]
 
 ## 9. Integration
 
