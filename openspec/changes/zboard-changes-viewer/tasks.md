@@ -18,7 +18,7 @@
 
 ## 4. Plan agents
 
-- [ ] 4.1 Plan prompts with delimited untrusted data and the five JSON output contracts [req: User text is data; Agent output validation]
+- [x] 4.1 Plan prompts with delimited untrusted data and the five JSON output contracts [req: User text is data; Agent output validation]
 - [ ] 4.2 Plan roles in the three-level model/effort config, registration, hiding and the plan-agent write guard [req: Read-only plan agents]
 
 ## 5. Runner and authoring
