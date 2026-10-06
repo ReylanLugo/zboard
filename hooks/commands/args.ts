@@ -5,10 +5,11 @@ export type ZboardCommand =
   | { readonly kind: 'config' }
   | { readonly kind: 'set'; readonly label: string; readonly role: string; readonly model: string; readonly effort: string }
   | { readonly kind: 'import-odd'; readonly feature: string; readonly confirm?: string }
+  | { readonly kind: 'changes'; readonly changeId?: string }
   | { readonly kind: 'error'; readonly message: string }
 
 export const USAGE =
-  'usage: /zboard [run <change>[/<label>] | pause | set <label> <agent> <model> <effort> | config | import-odd <feature> [--confirm <digest>]]'
+  'usage: /zboard [run <change>[/<label>] | changes [<change>] | pause | set <label> <agent> <model> <effort> | config | import-odd <feature> [--confirm <digest>]]'
 
 const error = (message: string): ZboardCommand => ({ kind: 'error', message: `${message}. ${USAGE}` })
 
@@ -50,6 +51,9 @@ export function parseArgs(args: string): ZboardCommand {
       return parseSet(rest)
     case 'import-odd':
       return parseImport(rest)
+    case 'changes':
+      if (rest.length > 1) return error('changes takes at most one <change>')
+      return rest[0] === undefined ? { kind: 'changes' } : { kind: 'changes', changeId: rest[0] }
     default:
       return error(`unknown subcommand "${verb}"`)
   }

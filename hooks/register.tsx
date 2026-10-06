@@ -8,7 +8,7 @@ import { installEngramAllow } from './adapters/engram.ts'
 import type { LogState } from './domain/log.ts'
 import { EMPTY_LOG, boardOf } from './domain/log.ts'
 import type { PlanLog } from './plan/plan-log.ts'
-import { EMPTY_PLAN_LOG } from './plan/plan-log.ts'
+import { EMPTY_PLAN_LOG, planOf } from './plan/plan-log.ts'
 import type { Ctx } from './runtime/ctx.ts'
 import type { Io } from './runtime/io.ts'
 import { captureStop, captureTokens, touch } from './runtime/capture.ts'
@@ -18,11 +18,13 @@ import { append, isolate, readBoard } from './runtime/log-store.ts'
 import { mirrorCreated, mirrorUpdated } from './runtime/native.ts'
 import { installNotify } from './runtime/notify.ts'
 import { installOrchestrator } from './runtime/orchestrator.ts'
+import { readDocs } from './runtime/plan-docs.ts'
 import { installPlanJobs } from './runtime/plan-jobs.ts'
 import { flushPlanMirror, installPlanMirror } from './runtime/plan-mirror.ts'
 import { recoverPlan } from './runtime/plan-recovery.ts'
 import { planStop, planTokens } from './runtime/plan-runner.ts'
 import { isolatePlan } from './runtime/plan-store.ts'
+import { closeChanges, focusChange, renderChanges } from './ui/ChangesPane.tsx'
 import { closeDetail, renderDetail } from './ui/Detail.tsx'
 import { focusCard, renderPane } from './ui/Pane.tsx'
 import { applyStoredPrefs } from './ui/prefs.ts'
@@ -281,6 +283,7 @@ export const register: Register = (on, options) => {
   on('ui.focus', async ($, e, next) => {
     const io = ioOf($)
     await isolate(io, 'ui.focus', () => focusCard(io, e.requestId, e.element), undefined)
+    await isolatePlan(io, 'ui.focus.changes', () => focusChange(io, e.requestId, e.element), undefined)
     return next(e)
   })
 
@@ -295,6 +298,21 @@ export const register: Register = (on, options) => {
   on('ui.close', { id: 'zboard-detail' }, async ($, e, next) => {
     const io = ioOf($)
     await isolate(io, 'ui.close', () => closeDetail(io), undefined)
+    return next(e)
+  })
+
+  // The changes viewer (ui/ChangesPane.tsx). Reading the atoms here subscribes the drawing to them.
+  on('ui.render', { component: 'Pane', requestId: 'zboard-changes' }, async ($, e) => {
+    const plan = planOf((await read($, planAtom)) as PlanLog)
+    const ui = (await read($, uiAtom)) as UiState
+    const io = ioOf($)
+    const selected = ui.changes.selected === null ? undefined : plan.changes[ui.changes.selected]
+    const docs = await readDocs(io, selected)
+    return renderChanges($.ui.resolve(e), e.surface, io, ctx, { plan, ui: ui.changes, docs, columns: e.props.bodyColumns })
+  })
+  on('ui.close', { id: 'zboard-changes' }, async ($, e, next) => {
+    const io = ioOf($)
+    await isolatePlan(io, 'ui.close.changes', () => closeChanges(io), undefined)
     return next(e)
   })
 }

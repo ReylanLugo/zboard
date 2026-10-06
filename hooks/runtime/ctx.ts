@@ -13,3 +13,4 @@ export const concurrencyOf = (ctx: Ctx): number => {
 }
 export const PANE_ID = 'zboard'
 export const DETAIL_ID = 'zboard-detail'
+export const CHANGES_ID = 'zboard-changes'

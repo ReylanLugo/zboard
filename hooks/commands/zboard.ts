@@ -2,6 +2,7 @@ import type { Ctx } from '../runtime/ctx.ts'
 import { PANE_ID } from '../runtime/ctx.ts'
 import type { Io } from '../runtime/io.ts'
 import { pauseRun, startRun } from '../runtime/orchestrator.ts'
+import { openChanges } from '../runtime/plan-open.ts'
 import type { ZboardCommand } from './args.ts'
 import { USAGE } from './args.ts'
 import { setOverride, showConfig } from './config-view.ts'
@@ -11,7 +12,7 @@ export async function registerCommand(io: Io): Promise<void> {
   await io.command.register({
     name: 'zboard',
     description: 'Open the zboard task board and run OpenSpec changes through the pipeline',
-    argumentHint: '[run <change>[/<label>] | pause | set <label> <agent> <model> <effort> | config | import-odd <feature>]',
+    argumentHint: '[run <change>[/<label>] | changes [<change>] | pause | set <label> <agent> <model> <effort> | config | import-odd <feature>]',
   })
 }
 
@@ -38,6 +39,8 @@ export async function dispatch(io: Io, ctx: Ctx, command: ZboardCommand): Promis
       return showConfig(io, ctx)
     case 'import-odd':
       return importOdd(io, command.feature, command.confirm)
+    case 'changes':
+      return openChanges(io, command.changeId)
     case 'error':
       return `zboard: ${command.message}`
     default:
