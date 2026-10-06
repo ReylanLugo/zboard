@@ -6,6 +6,7 @@ import { readProjectConfig } from '../adapters/config-io.ts'
 import { snapshot } from '../adapters/git.ts'
 import { loadChange } from '../adapters/openspec.ts'
 import { phasePrompt } from '../adapters/prompts.ts'
+import { commandDisplay, runnerOf } from '../adapters/test-runner.ts'
 import { configWarnings, globalLayer, resolveChoice } from '../domain/config.ts'
 import type { EventBody } from '../domain/events.ts'
 import type { Action } from '../domain/pipeline.ts'
@@ -124,6 +125,7 @@ export async function spawnPhase(io: Io, ctx: Ctx, task: Task, pending: PendingP
   const prompt = phasePrompt({
     task, phase: pending.phase, attempt: pending.attempt, failureReason: pending.reason, partial: pending.partial,
     artifacts: await priorArtifacts(io, task, pending.phase), comments: pendingComments.map(formatComment),
+    testCommand: commandDisplay(runnerOf(project)),
   })
   const baseline = await snapshot(io, await io.session.root())
   const spawned = await spawnRole(io, { role, prompt, description: `${task.id} ${pending.phase}`, model: choice.modelId, effort: choice.effort })

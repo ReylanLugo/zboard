@@ -35,6 +35,13 @@ export function commandFor(runner: TestRunner, file: string): string[] {
   return placed ? runner.argv.map(part => part.replaceAll(FILE_PLACEHOLDER, () => file)) : [...runner.argv, file]
 }
 
+const DISPLAY_FILE = '<file>'
+
+/** The command as a person reads it, e.g. `uv run pytest <file>`; elements with whitespace are quoted. */
+export function commandDisplay(runner: TestRunner, file: string = DISPLAY_FILE): string {
+  return commandFor(runner, file).map(part => (/\s/.test(part) || part === '' ? JSON.stringify(part) : part)).join(' ')
+}
+
 /** A plain repository-relative path that no runner can read as an option. */
 const isRunnableFile = (file: string): boolean =>
   file !== '' && !file.includes('\0') && !file.startsWith('-') && !file.startsWith('/') && !file.split('/').includes('..')

@@ -37,6 +37,9 @@ test('tdd and code gates run the configured test command instead of ptest', { ti
   await stopAgent($, lastAgent(w), ANSWERS.code)
   await stopAgent($, lastAgent(w), ANSWERS.approve)
   expect((await taskOf($, '1.1')).status).toBe('done')
+  const tddPrompt = w.spawns.find(spawn => spawn.subagentType === 'zboard:tdd')?.prompt ?? ''
+  expect(tddPrompt).toContain('Run tests only as `uv run pytest <file>` from the repository root')
+  expect(tddPrompt).not.toContain('ptest')
   const testRuns = w.runs.filter(argv => argv[0] === 'uv' || argv[0] === 'ptest')
   expect(testRuns).toEqual([[...PYTEST, 'tests/test_a.py'], [...PYTEST, 'tests/test_a.py']])
 })
