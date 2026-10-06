@@ -1,8 +1,9 @@
 import { mock } from 'claude-code/testing'
-import type { AgentInfo, AgentSpawnInput, AgentSpawnResult, FsStat, On, ProcessRunResult, SessionMessagesResult, ToolCallResult } from 'claude-code'
+import type { AgentInfo, AgentSpawnInput, AgentSpawnResult, FsEntry, FsStat, On, ProcessRunResult, SessionMessagesResult, ToolCallResult } from 'claude-code'
 import type { MockClock } from 'claude-code/testing'
 
 import { EMPTY_LOG } from '../domain/log.ts'
+import { EMPTY_PLAN_LOG } from '../plan/plan-log.ts'
 import type { Io, StatePort } from '../runtime/io.ts'
 import { DEFAULT_UI } from '../runtime/ui-types.ts'
 import { NATIVE_STATE } from './harness-facts.ts'
@@ -180,6 +181,25 @@ const fsStat = (w: World, spelled: string, resolve?: boolean): Answer<FsStat> =>
   return { value: (resolve === true ? { ...stat, realPath: path } : stat) as FsStat }
 }
 
+const fsList = (w: World, spelled: string): Answer<FsEntry[]> => {
+  const dir = realOf(w, absPath(spelled))
+  if (!isDir(w, dir)) return { deny: `ENOENT: no such file or directory, scandir '${spelled}'` }
+  const kinds = new Map<string, 'file' | 'dir'>()
+  for (const key of w.files.keys()) {
+    if (!key.startsWith(`${dir}/`)) continue
+    const rest = key.slice(dir.length + 1)
+    const cut = rest.indexOf('/')
+    kinds.set(cut < 0 ? rest : rest.slice(0, cut), cut < 0 ? 'file' : 'dir')
+  }
+  const names = [...kinds.keys()].sort()
+  return {
+    value: names.map(name => {
+      const kind = kinds.get(name) ?? 'file'
+      return { name, kind, size: kind === 'file' ? (w.files.get(`${dir}/${name}`)?.length ?? 0) : 0, mtimeMs: 0, isLink: false }
+    }),
+  }
+}
+
 const processRun = (w: World, argv: readonly string[]): Answer<ProcessRunResult> => {
   w.runs.push([...argv])
   const index = w.rules.findIndex(rule => rule.match(argv))
@@ -204,6 +224,7 @@ function installFs(on: On, w: World): void {
   on('fs.write', (_$, e) => fsWrite(w, e.path, e.text))
   on('fs.exists', (_$, e) => fsExists(w, e.path))
   on('fs.stat', (_$, e) => fsStat(w, e.path, e.resolve))
+  on('fs.list', (_$, e) => fsList(w, e.path))
 }
 
 function installProcess(on: On, w: World): void {
@@ -222,6 +243,7 @@ export function worldIo(w: World): Io {
       write: (path, text) => settle(fsWrite(w, path, text)),
       exists: path => settle(fsExists(w, path)),
       stat: (path, options) => settle(fsStat(w, path, options?.resolve)),
+      list: path => settle(fsList(w, path)),
     },
     process: { run: argv => settle(processRun(w, argv)) },
     agent: {
@@ -257,6 +279,7 @@ export function worldIo(w: World): Io {
       log: memoryPort(w, 'log', EMPTY_LOG),
       ui: memoryPort(w, 'ui', DEFAULT_UI),
       artifacts: memoryPort<Readonly<Record<string, string>>>(w, 'artifacts', {}),
+      plan: memoryPort(w, 'plan', EMPTY_PLAN_LOG),
     },
     store: {
       get: async key => w.store.get(key),

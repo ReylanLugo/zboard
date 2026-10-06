@@ -7,6 +7,8 @@ import { dispatch, registerCommand } from './commands/zboard.ts'
 import { installEngramAllow } from './adapters/engram.ts'
 import type { LogState } from './domain/log.ts'
 import { EMPTY_LOG, boardOf } from './domain/log.ts'
+import type { PlanLog } from './plan/plan-log.ts'
+import { EMPTY_PLAN_LOG } from './plan/plan-log.ts'
 import type { Ctx } from './runtime/ctx.ts'
 import type { Io } from './runtime/io.ts'
 import { captureStop, captureTokens, touch } from './runtime/capture.ts'
@@ -33,6 +35,7 @@ import { assignTool, commentTool, createTaskTool, moveTool, registerWriteTools }
 const logAtom = atom({ plugin: 'zboard', key: 'log' } as const, EMPTY_LOG)
 const uiAtom = atom({ plugin: 'zboard', key: 'ui' } as const, DEFAULT_UI)
 const artifactsAtom = atom({ plugin: 'zboard', key: 'artifacts' } as const, {})
+const planAtom = atom({ plugin: 'zboard', key: 'plan' } as const, EMPTY_PLAN_LOG)
 
 /** Repo-relative paths are the domain's; the engine resolves relative paths against its own cwd. */
 async function inRepo($: EngineInterface, path: string): Promise<string> {
@@ -47,6 +50,7 @@ function ioOf($: EngineInterface): Io {
       write: async (path, text) => $.fs.write(await inRepo($, path), text),
       exists: async path => $.fs.exists(await inRepo($, path)),
       stat: async (path, options) => $.fs.stat(await inRepo($, path), options),
+      list: async path => $.fs.list(await inRepo($, path)),
     },
     process: { run: (argv, init) => $.process.run(argv, init) },
     agent: {
@@ -80,6 +84,10 @@ function ioOf($: EngineInterface): Io {
       artifacts: {
         read: () => read($, artifactsAtom),
         update: fn => update($, artifactsAtom, fn),
+      },
+      plan: {
+        read: async () => (await read($, planAtom)) as PlanLog,
+        update: fn => update($, planAtom, current => fn(current as PlanLog)) as Promise<PlanLog>,
       },
     },
     command: { register: spec => $.command.register(spec) },

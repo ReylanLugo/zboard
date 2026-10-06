@@ -1,7 +1,7 @@
 /**
  * zboard's `$.state` contract. Claude Code requires it to be self-contained (no
  * imports), so values are declared structurally here; the module narrows them
- * to its domain types (`LogState`, `UiState`) at the `ioOf` boundary.
+ * to its domain types (`LogState`, `UiState`, `PlanLog`) at the `ioOf` boundary.
  */
 export type ZboardLog = {
   readonly snapshot: unknown
@@ -16,9 +16,22 @@ export type ZboardUi = {
   readonly composing: string | null
   readonly detail: string | null
   readonly showArtifact: boolean
+  readonly changes: {
+    readonly selected: string | null
+    readonly tab: string
+    readonly artifact: string | null
+    readonly composing: string | null
+    readonly forecast: unknown
+  }
 }
 
 export type ZboardArtifacts = Readonly<Record<string, string>>
+
+export type ZboardPlan = {
+  readonly snapshot: unknown
+  readonly tail: readonly unknown[]
+  readonly seq: number
+}
 
 declare module 'claude-code' {
   interface PluginState {
@@ -26,6 +39,7 @@ declare module 'claude-code' {
       log: ZboardLog
       ui: ZboardUi
       artifacts: ZboardArtifacts
+      plan: ZboardPlan
     }
   }
 }

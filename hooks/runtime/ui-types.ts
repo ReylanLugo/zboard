@@ -1,4 +1,5 @@
 import type { Role, TaskStatus } from '../domain/types.ts'
+import type { Forecast } from '../plan/types.ts'
 
 export type View = 'kanban' | 'swimlane' | 'tree'
 export const VIEWS: readonly View[] = ['kanban', 'swimlane', 'tree']
@@ -9,6 +10,21 @@ export type Filter =
   | { readonly kind: 'agent'; readonly value: Role }
   | { readonly kind: 'section'; readonly value: string }
 
+export type ChangesTab = 'summary' | 'diagrams' | 'specs' | 'tasks' | 'verify' | 'history'
+export const CHANGES_TABS: readonly ChangesTab[] = ['summary', 'diagrams', 'specs', 'tasks', 'verify', 'history']
+export type ComposeKind = 'new' | 'comment' | 'note'
+
+/** Transient state of the changes viewer pane; `closeChanges` clears `composing` and `forecast`. */
+export interface ChangesUi {
+  readonly selected: string | null
+  readonly tab: ChangesTab
+  readonly artifact: string | null
+  readonly composing: ComposeKind | null
+  readonly forecast: Forecast | null
+}
+
+export const DEFAULT_CHANGES_UI: ChangesUi = { selected: null, tab: 'summary', artifact: null, composing: null, forecast: null }
+
 export interface UiState {
   readonly view: View
   readonly filter: Filter
@@ -16,6 +32,7 @@ export interface UiState {
   readonly composing: string | null
   readonly detail: string | null
   readonly showArtifact: boolean
+  readonly changes: ChangesUi
 }
 
 export const DEFAULT_UI: UiState = {
@@ -25,4 +42,5 @@ export const DEFAULT_UI: UiState = {
   composing: null,
   detail: null,
   showArtifact: false,
+  changes: DEFAULT_CHANGES_UI,
 }

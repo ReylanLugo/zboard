@@ -1,6 +1,7 @@
-import type { AgentSpawnArgs, AgentSpawnResult, EngineInterface, SessionMessagesAgentArgs, SessionMessagesResult, Timer, ToolCallResult } from 'claude-code'
+import type { AgentSpawnArgs, AgentSpawnResult, EngineInterface, FsEntry, SessionMessagesAgentArgs, SessionMessagesResult, Timer, ToolCallResult } from 'claude-code'
 
 import type { LogState } from '../domain/log.ts'
+import type { PlanLog } from '../plan/plan-log.ts'
 import type { UiState } from './ui-types.ts'
 
 /** One `$.state` value, read and updated (with the engine's version check) through `ioOf`. */
@@ -24,6 +25,8 @@ export interface Io {
     readonly write: (path: string, text: string) => Promise<void>
     readonly exists: (path: string) => Promise<boolean>
     readonly stat: EngineInterface['fs']['stat']
+    /** Entries of a directory, each as it stands (a symbolic link is `other`). */
+    readonly list: (path: string) => Promise<readonly FsEntry[]>
   }
   readonly process: {
     readonly run: EngineInterface['process']['run']
@@ -46,6 +49,7 @@ export interface Io {
     readonly log: StatePort<LogState>
     readonly ui: StatePort<UiState>
     readonly artifacts: StatePort<Readonly<Record<string, string>>>
+    readonly plan: StatePort<PlanLog>
   }
   readonly store: {
     readonly get: (key: string) => Promise<unknown>
