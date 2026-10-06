@@ -8,7 +8,15 @@ const isComplete = (board: Board): boolean => {
   return tasks.length > 0 && tasks.every(task => task.status === 'done')
 }
 
-export function noticesBetween(before: Board, after: Board): string[] {
+/** Which runner the project uses: ptest names its own full gate; any other runner gets neutral wording. */
+export type RunnerKind = 'ptest' | 'custom'
+
+const FULL_GATE: Readonly<Record<RunnerKind, string>> = {
+  ptest: 'The integrated `ptest --full` gate is still required before handoff.',
+  custom: 'The integrated full-suite gate is still required before handoff: run the project\'s full test suite.',
+}
+
+export function noticesBetween(before: Board, after: Board, runner: RunnerKind = 'ptest'): string[] {
   const decisions = after.order.flatMap(id => {
     const now = after.tasks[id]
     const was = before.tasks[id]
@@ -20,6 +28,6 @@ export function noticesBetween(before: Board, after: Board): string[] {
   const count = openspecTasks(after).length
   return [
     ...decisions,
-    `zboard: change ${after.changeId} is complete (${count}/${count} tasks done). The integrated \`ptest --full\` gate is still required before handoff.`,
+    `zboard: change ${after.changeId} is complete (${count}/${count} tasks done). ${FULL_GATE[runner]}`,
   ]
 }
