@@ -13,7 +13,7 @@
 
 ## 3. Readiness and structure
 
-- [ ] 3.1 Requirement parsing and the six readiness checks in `hooks/plan/readiness.ts` [req: Readiness checklist; Render existing artifacts]
+- [x] 3.1 Requirement parsing and the six readiness checks in `hooks/plan/readiness.ts` [req: Readiness checklist; Render existing artifacts]
 - [ ] 3.2 Deterministic task-graph layout with SVG and ASCII renderers in `hooks/plan/structure.ts` [req: Structural diagrams]
 
 ## 4. Plan agents
