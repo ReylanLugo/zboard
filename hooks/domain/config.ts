@@ -62,6 +62,9 @@ export interface Resolved {
 export interface ProjectConfig {
   readonly layers: Readonly<Partial<Record<AgentRole, ModelChoice>>>
   readonly autoEscalate?: boolean
+  /** argv template for one test file; absent means ptest. Present only when valid. */
+  readonly testCommand?: readonly string[]
+  readonly testTimeoutMs?: number
   readonly warnings: readonly string[]
 }
 
@@ -120,6 +123,35 @@ const choiceOf = (value: Record<string, unknown>): ModelChoice => ({
   ...(typeof value.effort === 'string' ? { effort: value.effort } : {}),
 })
 
+export const TEST_COMMAND_LIMITS = { maxItems: 32, maxLength: 512, minTimeoutMs: 1_000, maxTimeoutMs: 3_600_000 } as const
+
+type TestSettings = Pick<ProjectConfig, 'testCommand' | 'testTimeoutMs'> & { readonly warnings: readonly string[] }
+
+const isTestCommand = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.length > 0 && value.length <= TEST_COMMAND_LIMITS.maxItems
+  && value.every(item => typeof item === 'string' && item !== '' && item.length <= TEST_COMMAND_LIMITS.maxLength)
+
+const isTestTimeout = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isInteger(value)
+  && value >= TEST_COMMAND_LIMITS.minTimeoutMs && value <= TEST_COMMAND_LIMITS.maxTimeoutMs
+
+/** Optional `testCommand` / `testTimeoutMs`; any invalid value drops both so ptest stays in use. */
+function testSettings(json: Readonly<Record<string, unknown>>): TestSettings {
+  const { testCommand, testTimeoutMs } = json
+  if (testCommand === undefined) {
+    return { warnings: testTimeoutMs === undefined ? [] : ['.zboard/config.json: testTimeoutMs is ignored without testCommand'] }
+  }
+  if (!isTestCommand(testCommand)) {
+    const { maxItems, maxLength } = TEST_COMMAND_LIMITS
+    return { warnings: [`.zboard/config.json: testCommand must be a non-empty array of non-empty strings (at most ${maxItems}, each at most ${maxLength} characters); using ptest`] }
+  }
+  if (testTimeoutMs !== undefined && !isTestTimeout(testTimeoutMs)) {
+    const { minTimeoutMs, maxTimeoutMs } = TEST_COMMAND_LIMITS
+    return { warnings: [`.zboard/config.json: testTimeoutMs must be an integer from ${minTimeoutMs} to ${maxTimeoutMs}; using ptest`] }
+  }
+  return { testCommand: [...testCommand], ...(testTimeoutMs === undefined ? {} : { testTimeoutMs }), warnings: [] }
+}
+
 export function parseProjectConfig(text: string | undefined): ProjectConfig {
   if (text === undefined) return { layers: {}, warnings: [] }
   let json: unknown
@@ -134,10 +166,12 @@ export function parseProjectConfig(text: string | undefined): ProjectConfig {
     ALL_ROLES.flatMap(role => { const value = agents[role]; return isRecord(value) ? [[role, choiceOf(value)] as const] : [] }),
   )
   const unknown = Object.keys(agents).filter(key => !(ALL_ROLES as readonly string[]).includes(key))
+  const { warnings: testWarnings, ...test } = testSettings(json)
   return {
     layers,
     ...(typeof json.autoEscalate === 'boolean' ? { autoEscalate: json.autoEscalate } : {}),
-    warnings: unknown.map(key => `.zboard/config.json: unknown agent "${key}"`),
+    ...test,
+    warnings: [...unknown.map(key => `.zboard/config.json: unknown agent "${key}"`), ...testWarnings],
   }
 }
 
