@@ -8,7 +8,7 @@
 
 - [x] 2.1 Grow `Io` with `fs.list` and `state.plan`, the `zboard.plan` contract key, viewer UI state, and the plan store with `isolatePlan` [req: Plan state persistence and recovery; Error display and isolation]
 - [x] 2.2 OpenSpec CLI adapter over recorded `--json` fixtures plus the scripted OpenSpec test world [req: List changes by group; Create a change; Archive through the CLI; Change-name validation]
-- [ ] 2.3 FNV-1a fingerprint and the artifact file adapter (list, read, write, remove, glob, archived dirs) [req: Fingerprint tracking]
+- [x] 2.3 FNV-1a fingerprint and the artifact file adapter (list, read, write, remove, glob, archived dirs) [req: Fingerprint tracking]
 - [ ] 2.4 Myers unified diff and the pure proposal rules (write scope, build, stale, revert steps) [req: Diff proposals; Write scope; Stale proposals are never applied]
 
 ## 3. Readiness and structure
