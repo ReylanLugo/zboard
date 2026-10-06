@@ -59,6 +59,23 @@ test('true without a cited passing test, or citing a missing evidence file, is n
   expect(findings.map(f => f.verdict)).toEqual(['no_evidence', 'no_evidence', 'no_evidence', 'no_evidence'])
 })
 
+test('duplicate verdicts for one requirement keep the worst and merge their evidence', () => {
+  const findings = normalizeFindings({
+    raw: [
+      raw('Export CSV', 'true', ['src/export.ts:12'], ['tests/export.test.ts']),
+      raw('Export CSV', 'false', ['src/export.ts:20']),
+      raw('Import CSV', 'no_evidence', ['nothing cites it']),
+      raw('Import CSV', 'ambiguous', ['two readings']),
+      { ...raw('Delete CSV', 'contradiction', ['spec vs code']), scenario: 'Bulk' },
+      { ...raw('Delete CSV', 'true', ['src/export.ts:12'], ['tests/export.test.ts']), scenario: 'Bulk' },
+    ],
+    requirements: FIVE.slice(0, 3), scope: [], tests: { 'tests/export.test.ts': pass }, present: new Set(['src/export.ts']),
+  })
+  expect(findings.map(f => [f.id, f.verdict])).toEqual([['r:export-csv', 'false'], ['r:import-csv', 'ambiguous'], ['r:delete-csv#bulk', 'contradiction']])
+  expect(findings[0]?.evidence).toEqual(['src/export.ts:12', 'ptest tests/export.test.ts: ptest: demo · passed · 3 tests', 'src/export.ts:20'])
+  expect(findings[1]?.evidence).toEqual(['nothing cites it', 'two readings'])
+})
+
 test('resolutions follow the verdict table', () => {
   expect(canResolve('false', 'accepted')).toBe(false)
   expect(canResolve('false', 'fix_code')).toBe(true)

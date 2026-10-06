@@ -68,13 +68,28 @@ function normalizeOne(raw: JudgeRaw, tests: Readonly<Record<string, TestEvidence
   return { ...base, verdict: isProven(raw, runs, present) ? 'true' : 'no_evidence' }
 }
 
+/** Worse verdicts rank higher: a duplicate can never let a `true` mask a failure. */
+const SEVERITY: Readonly<Record<Verdict, number>> = { true: 0, no_evidence: 1, ambiguous: 2, false: 3, contradiction: 3 }
+
+/** Folds findings sharing an id into one: the worst verdict, with every distinct evidence entry. */
+function worstPerId(findings: readonly Finding[]): Finding[] {
+  return findings.reduce<Finding[]>((kept, finding) => {
+    const index = kept.findIndex(other => other.id === finding.id)
+    const prior = kept[index]
+    if (prior === undefined) return [...kept, finding]
+    const worst = SEVERITY[finding.verdict] > SEVERITY[prior.verdict] ? finding : prior
+    const merged = { ...worst, evidence: [...new Set([...prior.evidence, ...finding.evidence])] }
+    return kept.map((item, at) => (at === index ? merged : item))
+  }, [])
+}
+
 /** D13.3: zboard never produces `true` on its own. */
 export function normalizeFindings(input: NormalizeInput): Finding[] {
   const judged = input.scope.length === 0 ? input.requirements : input.requirements.filter(name => input.scope.includes(name))
   if (input.raw === undefined) return judged.map(name => noEvidence(name, 'the judge gave no valid answer'))
   const relevant = input.raw.filter(raw => judged.includes(raw.requirement))
   const findings = relevant.map(raw => normalizeOne(raw, input.tests, input.present))
-  const unique = findings.filter((finding, index) => findings.findIndex(other => other.id === finding.id) === index)
+  const unique = worstPerId(findings)
   const omitted = judged.filter(name => !relevant.some(raw => raw.requirement === name))
   return [...unique, ...omitted.map(name => noEvidence(name, 'the judge gave no verdict'))]
 }
