@@ -56,3 +56,25 @@ test('/zboard set rejects unknown agents, models and efforts', { timeoutMs: PLUG
   expect(await zboard($, 'set 1.1 reviewer gpt 9 high')).toBe('zboard: unknown model "gpt 9" (opus 5.5, sonnet 5.5, haiku 4.5)')
   expect(await zboard($, 'set 1.1 reviewer opus 5.5 ultra')).toBe('zboard: unknown effort "ultra" (low, medium, high, xhigh, max)')
 })
+
+test('config lines show the default ptest test command when none is configured', () => {
+  expect(configLines(parseProjectConfig(undefined), {}, emptyBoard(null))).toContain('test command: ["ptest","{file}"] (default (ptest))')
+})
+
+test('/zboard config prints the project test command with its timeout', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+  const w = installWorld(on)
+  setupDemo(w)
+  w.files.set('/repo/.zboard/config.json', '{"testCommand":["uv","run","pytest","{file}"],"testTimeoutMs":120000}')
+  await boot($)
+  expect(await zboard($, 'config')).toContain('test command: ["uv","run","pytest","{file}"] (project), timeout 120000 ms')
+})
+
+test('/zboard config prints the ptest fallback and the warning for an invalid test command', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+  const w = installWorld(on)
+  setupDemo(w)
+  w.files.set('/repo/.zboard/config.json', '{"testCommand":[]}')
+  await boot($)
+  const text = await zboard($, 'config')
+  expect(text).toContain('test command: ["ptest","{file}"] (default (ptest))')
+  expect(text).toContain('⚠ .zboard/config.json: testCommand must be a non-empty array of non-empty strings')
+})

@@ -1,6 +1,7 @@
 import type { Io } from '../runtime/io.ts'
 
 import { readProjectConfig } from '../adapters/config-io.ts'
+import { runnerOf } from '../adapters/test-runner.ts'
 import type { ProjectConfig } from '../domain/config.ts'
 import { EFFORTS, MODELS, configWarnings, globalLayer, isEffort, isModel, resolveChoice } from '../domain/config.ts'
 import type { Board, Role } from '../domain/types.ts'
@@ -9,6 +10,13 @@ import type { Ctx } from '../runtime/ctx.ts'
 import { append, readBoard } from '../runtime/log-store.ts'
 
 type Options = Readonly<Record<string, unknown>>
+
+/** The effective test command (argv template) and where it comes from. */
+function testCommandLine(project: ProjectConfig): string {
+  const runner = runnerOf(project)
+  if (runner.kind === 'ptest') return `test command: ${JSON.stringify(['ptest', '{file}'])} (default (ptest))`
+  return `test command: ${JSON.stringify(runner.argv)} (project), timeout ${runner.timeoutMs} ms`
+}
 
 export function configLines(project: ProjectConfig, options: Options, board: Board): string[] {
   const rows = ROLES.map(role => {
@@ -22,6 +30,7 @@ export function configLines(project: ProjectConfig, options: Options, board: Boa
     'zboard agent configuration — value (source):',
     ...rows,
     `auto-escalation: ${autoEscalate ? 'on' : 'off'}`,
+    testCommandLine(project),
     ...(overrides.length === 0 ? [] : ['task overrides:', ...overrides]),
   ]
 }
