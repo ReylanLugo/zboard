@@ -1,11 +1,13 @@
 import { expect, test } from 'claude-code/testing'
 
+import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
+
 import { SURFACES, labelOf, mountPane } from '../testing/ui.ts'
 import { installWorld, worldIo } from '../testing/world.ts'
 import { TWO_TASKS, boot, lastAgent, setupDemo, stopAgent, taskOf, zboard } from '../testing/zboard.ts'
 
 for (const surface of SURFACES) {
-  test(`${surface}: with no change loaded the board hints at /zboard run`, async ($, on) => {
+  test(`${surface}: with no change loaded the board hints at /zboard run`, { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
     installWorld(on)
     await boot($)
     const ui = await mountPane($, surface)
@@ -13,7 +15,7 @@ for (const surface of SURFACES) {
     await ui.unmount()
   })
 
-  test(`${surface}: the header and Kanban columns render the running change`, async ($, on) => {
+  test(`${surface}: the header and Kanban columns render the running change`, { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
     const w = installWorld(on)
     setupDemo(w)
     await boot($)
@@ -26,7 +28,7 @@ for (const surface of SURFACES) {
     await ui.unmount()
   })
 
-  test(`${surface}: c then text records a comment; an empty comment records nothing`, async ($, on) => {
+  test(`${surface}: c then text records a comment; an empty comment records nothing`, { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
     const w = installWorld(on)
     setupDemo(w)
     await boot($)
@@ -41,7 +43,7 @@ for (const surface of SURFACES) {
     await ui.unmount()
   })
 
-  test(`${surface}: b blocks a ready task and the scheduler does not start it`, async ($, on) => {
+  test(`${surface}: b blocks a ready task and the scheduler does not start it`, { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
     const w = installWorld(on)
     setupDemo(w, TWO_TASKS)
     await boot($)
@@ -55,7 +57,7 @@ for (const surface of SURFACES) {
     await ui.unmount()
   })
 
-  test(`${surface}: p raises the selected task's priority`, async ($, on) => {
+  test(`${surface}: p raises the selected task's priority`, { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
     const w = installWorld(on)
     setupDemo(w, TWO_TASKS)
     await boot($)
@@ -67,7 +69,7 @@ for (const surface of SURFACES) {
     await ui.unmount()
   })
 
-  test(`${surface}: f filters by status and shows only tasks needing a decision`, async ($, on) => {
+  test(`${surface}: f filters by status and shows only tasks needing a decision`, { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
     const w = installWorld(on)
     setupDemo(w, TWO_TASKS)
     await boot($)
@@ -84,7 +86,7 @@ for (const surface of SURFACES) {
     await ui.unmount()
   })
 
-  test(`${surface}: v switches the view and stores it as a preference`, async ($, on) => {
+  test(`${surface}: v switches the view and stores it as a preference`, { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
     const w = installWorld(on)
     setupDemo(w)
     await boot($)

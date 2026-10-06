@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
+
 import { newTask } from '../domain/types.ts'
 import { installWorld, worldIo } from '../testing/world.ts'
 import { TASKS_PATH, agentOf, boot, seedEngram, setupDemo, status, zboard } from '../testing/zboard.ts'
@@ -10,7 +12,7 @@ const seedSession = (w: Parameters<typeof seedEngram>[0], task: object): void =>
   seedEngram(w, 'zboard/repo/demo/1.1', JSON.stringify({ rev: 3, updatedAt: 5, task }))
 }
 
-test('after compaction a running phase whose agent is gone is interrupted and relaunched with partial work', async ($, on) => {
+test('after compaction a running phase whose agent is gone is interrupted and relaunched with partial work', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   await boot($)
@@ -22,7 +24,7 @@ test('after compaction a running phase whose agent is gone is interrupted and re
   expect(w.spawns[1]?.prompt).toContain('## Partial work from an interrupted run')
 })
 
-test('a fresh session restores the board from tasks.md and Engram, and tasks.md done-state wins', async ($, on) => {
+test('a fresh session restores the board from tasks.md and Engram, and tasks.md done-state wins', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w, '## 1. Core\n\n- [x] 1.1 Parse tasks\n')
   const running = { ...newTask({ id: '1.1', changeId: 'demo', title: 'Parse tasks', source: 'openspec' }), status: 'running', loop: 1 }
@@ -34,7 +36,7 @@ test('a fresh session restores the board from tasks.md and Engram, and tasks.md 
   expect(w.spawns).toHaveLength(0)
 })
 
-test('the board opens unasked after recovery and is not forced on a narrow terminal', async ($, on) => {
+test('the board opens unasked after recovery and is not forced on a narrow terminal', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   w.placePanes = false
@@ -43,7 +45,7 @@ test('the board opens unasked after recovery and is not forced on a narrow termi
   expect(w.opened).toEqual(['zboard'])
 })
 
-test('several events within 10 s are mirrored once after the debounce window', async ($, on) => {
+test('several events within 10 s are mirrored once after the debounce window', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   await boot($)
@@ -53,7 +55,7 @@ test('several events within 10 s are mirrored once after the debounce window', a
   expect(w.saved.filter(saved => saved.topic === 'zboard/repo/demo/1.1')).toHaveLength(1)
 })
 
-test('PreCompact flushes pending writes at once', async ($, on) => {
+test('PreCompact flushes pending writes at once', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   await boot($)
@@ -62,7 +64,7 @@ test('PreCompact flushes pending writes at once', async ($, on) => {
   expect(w.saved.map(saved => saved.topic)).toContain('zboard/repo/demo/1.1')
 })
 
-test('with Engram down the pipeline continues, the board shows mirror pending, and the next flush retries', async ($, on) => {
+test('with Engram down the pipeline continues, the board shows mirror pending, and the next flush retries', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   w.engram = 'error'
@@ -76,7 +78,7 @@ test('with Engram down the pipeline continues, the board shows mirror pending, a
   expect((await status($)).mirrorPending).toBe(false)
 })
 
-test('a task added to tasks.md appears within one poll interval', async ($, on) => {
+test('a task added to tasks.md appears within one poll interval', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   await boot($)
@@ -86,7 +88,7 @@ test('a task added to tasks.md appears within one poll interval', async ($, on) 
   expect((await status($)).tasks.map(task => task.id)).toEqual(['1.1', '3.4'])
 })
 
-test('FileChanged on tasks.md reconciles at once', async ($, on) => {
+test('FileChanged on tasks.md reconciles at once', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   await boot($)
@@ -96,7 +98,7 @@ test('FileChanged on tasks.md reconciles at once', async ($, on) => {
   expect((await status($)).tasks.map(task => task.id)).toEqual(['1.1', '1.2'])
 })
 
-test('SessionStart asks the engine to watch the active tasks.md (spike)', async ($, on) => {
+test('SessionStart asks the engine to watch the active tasks.md (spike)', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   await boot($)

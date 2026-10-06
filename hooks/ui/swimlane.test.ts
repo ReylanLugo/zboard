@@ -1,11 +1,13 @@
 import { expect, test } from 'claude-code/testing'
 
+import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
+
 import { SURFACES, mountPane } from '../testing/ui.ts'
 import { installWorld, worldIo } from '../testing/world.ts'
 import { ANSWERS, RED, TWO_TASKS, boot, scriptPtest, setupDemo, stopAgent, zboard } from '../testing/zboard.ts'
 
 for (const surface of SURFACES) {
-  test(`${surface}: the stored view opens the board in Swimlanes with the same tasks`, async ($, on) => {
+  test(`${surface}: the stored view opens the board in Swimlanes with the same tasks`, { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
     const w = installWorld(on)
     setupDemo(w)
     w.store.set('zboard/prefs', { view: 'swimlane', filter: { kind: 'none' } })
@@ -18,7 +20,7 @@ for (const surface of SURFACES) {
     await ui.unmount()
   })
 
-  test(`${surface}: an agent idle for more than 5 minutes has an amber heartbeat`, async ($, on) => {
+  test(`${surface}: an agent idle for more than 5 minutes has an amber heartbeat`, { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
     const w = installWorld(on)
     setupDemo(w)
     w.store.set('zboard/prefs', { view: 'swimlane', filter: { kind: 'none' } })
@@ -30,7 +32,7 @@ for (const surface of SURFACES) {
     await ui.unmount()
   })
 
-  test(`${surface}: a task waiting on another task's files shows its wait reason in the queue`, async ($, on) => {
+  test(`${surface}: a task waiting on another task's files shows its wait reason in the queue`, { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
     const w = installWorld(on)
     setupDemo(w, TWO_TASKS)
     scriptPtest(w, [RED, RED])

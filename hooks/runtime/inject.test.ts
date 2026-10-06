@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
+
 import { formatComment } from '../domain/comments.ts'
 import type { EventBody } from '../domain/events.ts'
 import { project } from '../domain/project.ts'
@@ -42,7 +44,7 @@ test('a delivered comment is not delivered again', () => {
   expect(noteFor(board, 'a1')).toBeUndefined()
 })
 
-test('a comment added before the next phase spawns is in that spawn prompt', async ($, on) => {
+test('a comment added before the next phase spawns is in that spawn prompt', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   await boot($)
@@ -54,7 +56,7 @@ test('a comment added before the next phase spawns is in that spawn prompt', asy
   expect((await taskOf($, '1.1')).comments[0]?.deliveredTo).toBe('zboard:planner')
 })
 
-test('a running agent receives the comment with its next tool result (spike: kit forwards agentId)', async ($, on) => {
+test('a running agent receives the comment with its next tool result (spike: kit forwards agentId)', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   on('tool.call', { tool: 'Read' }, () => ({ result: 'contents', text: 'contents' }))

@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
+
 import type { Io } from '../runtime/io.ts'
 import { project } from '../domain/project.ts'
 import { evs, loaded, parsed } from '../testing/factories.ts'
@@ -30,7 +32,7 @@ test('parseIds reads hash, ID and JSON spellings', () => {
   expect(parseIds('{"results":[{"id":4},{"id":5}]}')).toEqual([4, 5])
 })
 
-test('several marks within 10 s give a single upsert per task after the window', async ($, on) => {
+test('several marks within 10 s give a single upsert per task after the window', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   await ((async ($: Io) => {
   const m = createMirror()
@@ -44,7 +46,7 @@ test('several marks within 10 s give a single upsert per task after the window',
   expect(w.saved.map(saved => saved.topic).sort()).toEqual(['zboard/repo/active', 'zboard/repo/demo/1.1', 'zboard/repo/demo/1.2', 'zboard/repo/demo/index'])
 })
 
-test('an immediate flush saves pending writes and cancels the timer', async ($, on) => {
+test('an immediate flush saves pending writes and cancels the timer', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   expect(await ((async ($: Io) => {
   const m = createMirror()
@@ -56,7 +58,7 @@ test('an immediate flush saves pending writes and cancels the timer', async ($, 
   expect(w.saved).toHaveLength(before)
 })
 
-test('identical content saved twice differs by rev and updatedAt', async ($, on) => {
+test('identical content saved twice differs by rev and updatedAt', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   const [first, second] = (await ((async ($: Io) => {
   const m = createMirror()
@@ -74,7 +76,7 @@ test('identical content saved twice differs by rev and updatedAt', async ($, on)
 
 const shared = createMirror()
 
-test('an Engram error keeps the writes pending and the next flush retries them', async ($, on) => {
+test('an Engram error keeps the writes pending and the next flush retries them', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   w.engram = 'error'
   expect(await ((async ($: Io) => {
@@ -89,7 +91,7 @@ test('an Engram error keeps the writes pending and the next flush retries them',
   expect(w.saved.map(saved => saved.topic)).toContain('zboard/repo/demo/1.1')
 })
 
-test('a missing Engram tool marks pending without throwing', async ($, on) => {
+test('a missing Engram tool marks pending without throwing', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   w.engram = 'missing'
   expect(await ((async ($: Io) => {

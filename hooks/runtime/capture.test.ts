@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
+
 import { project } from '../domain/project.ts'
 import { evs, loaded, parsed } from '../testing/factories.ts'
 import { agentOf, boot, setupDemo, status, zboard } from '../testing/zboard.ts'
@@ -18,7 +20,7 @@ test('activityFor touches only a known, open run', () => {
   expect(activityFor(board, 'ghost', 'Write')).toEqual([])
 })
 
-test('SubagentStop closes the run with endedAt and transcript path', async ($, on) => {
+test('SubagentStop closes the run with endedAt and transcript path', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   await boot($)
@@ -29,7 +31,7 @@ test('SubagentStop closes the run with endedAt and transcript path', async ($, o
   expect((await status($)).tasks[0]?.agents.map(agent => agent.agentId)).not.toContain('agent-1')
 })
 
-test('turn.complete usage adds tokens to the agent run', async ($, on) => {
+test('turn.complete usage adds tokens to the agent run', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   await boot($)
@@ -38,7 +40,7 @@ test('turn.complete usage adds tokens to the agent run', async ($, on) => {
   expect(await agentOf($, 'agent-1')).toMatchObject({ tokens: 1500 })
 })
 
-test('SubagentStart refreshes activity of a known agent', async ($, on) => {
+test('SubagentStart refreshes activity of a known agent', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   await boot($)
@@ -48,7 +50,7 @@ test('SubagentStart refreshes activity of a known agent', async ($, on) => {
   expect(await agentOf($, 'agent-1')).toMatchObject({ lastActivityAt: 1_005_000 })
 })
 
-test('events for an agent that belongs to no task change nothing', async ($, on) => {
+test('events for an agent that belongs to no task change nothing', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   await boot($)
@@ -59,7 +61,7 @@ test('events for an agent that belongs to no task change nothing', async ($, on)
   expect((await status($)).events).toBe(before)
 })
 
-test('a tool call carrying agentId updates currentTool (spike: the kit forwards agentId)', async ($, on) => {
+test('a tool call carrying agentId updates currentTool (spike: the kit forwards agentId)', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   on('tool.call', { tool: 'Read' }, () => ({ result: 'contents', text: 'contents' }))

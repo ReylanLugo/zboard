@@ -1,9 +1,11 @@
 import { expect, test } from 'claude-code/testing'
 
+import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
+
 import { installWorld, worldIo } from '../testing/world.ts'
 import { boot, callTool, setupDemo, status, taskOf, zboard } from '../testing/zboard.ts'
 
-test('board_create_task adds a board task that appears on the board', async ($, on) => {
+test('board_create_task adds a board task that appears on the board', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   await boot($)
@@ -12,7 +14,7 @@ test('board_create_task adds a board task that appears on the board', async ($, 
   expect(await taskOf($, 'b1')).toMatchObject({ source: 'board', title: 'Write docs' })
 })
 
-test('board_move with an unknown task or status returns an error and appends nothing', async ($, on) => {
+test('board_move with an unknown task or status returns an error and appends nothing', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   await boot($)
@@ -24,7 +26,7 @@ test('board_move with an unknown task or status returns an error and appends not
   expect((await status($)).events).toBe(before)
 })
 
-test('board_comment from the main session records author main', async ($, on) => {
+test('board_comment from the main session records author main', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   await boot($)
@@ -33,7 +35,7 @@ test('board_comment from the main session records author main', async ($, on) =>
   expect((await taskOf($, '1.1')).comments[0]).toMatchObject({ author: 'main', text: 'prefer the streaming parser' })
 })
 
-test('a blocked ready task is not started by the scheduler', async ($, on) => {
+test('a blocked ready task is not started by the scheduler', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w, '## 1. Core\n\n- [ ] 1.1 Parse tasks\n- [ ] 1.2 Flip lines\n')
   await boot($)

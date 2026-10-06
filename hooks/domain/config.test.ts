@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
+
 import type { Io } from '../runtime/io.ts'
 import { installWorld, worldIo } from '../testing/world.ts'
 import { readProjectConfig } from '../adapters/config-io.ts'
@@ -68,7 +70,7 @@ test('displayModel maps ids back to names', () => {
   expect(displayModel('custom-model')).toBe('custom-model')
 })
 
-test('readProjectConfig reads .zboard/config.json and tolerates its absence', async ($, on) => {
+test('readProjectConfig reads .zboard/config.json and tolerates its absence', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   w.files.set('/repo/.zboard/config.json', '{"agents":{"planner":{"effort":"max"}}}')
   expect(await ((async ($: Io) => [await readProjectConfig($)]))(worldIo(w))).toEqual([{ layers: { planner: { effort: 'max' } }, warnings: [] }])

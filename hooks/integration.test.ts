@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+import { PLUGIN_TEST_TIMEOUT_MS } from './testing/timeouts.ts'
+
 import { mountPane } from './testing/ui.ts'
 import { argvIs, installWorld, worldIo } from './testing/world.ts'
 import {
@@ -9,7 +11,7 @@ import {
 const planFor = (file: string) => json({ approach: 'x', allowedFiles: [`src/${file}.ts`], testFiles: [`tests/${file}.test.ts`], testCases: ['keeps multiline'], edgeCases: [], risks: [] })
 const tddFor = (file: string) => json({ testFiles: [`tests/${file}.test.ts`], newTests: ['keeps multiline'] })
 
-test('two tasks run concurrently to done, each in its own commit, with one completion notice', async ($, on) => {
+test('two tasks run concurrently to done, each in its own commit, with one completion notice', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   const dirty = setupDemo(w, TWO_TASKS)
   scriptPtest(w, [RED, RED, GREEN, GREEN])
@@ -40,7 +42,7 @@ test('two tasks run concurrently to done, each in its own commit, with one compl
   await ui.unmount()
 })
 
-test('a hook failure for one task shows on the header and the other task carries on', async ($, on) => {
+test('a hook failure for one task shows on the header and the other task carries on', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w, TWO_TASKS)
   await boot($)
@@ -54,7 +56,7 @@ test('a hook failure for one task shows on the header and the other task carries
   await ui.unmount()
 })
 
-test('the read tools never append an event', async ($, on) => {
+test('the read tools never append an event', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   await boot($)

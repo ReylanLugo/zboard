@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
+
 import { parseProjectConfig } from '../domain/config.ts'
 import { emptyBoard } from '../domain/types.ts'
 import { installWorld, worldIo } from '../testing/world.ts'
@@ -15,7 +17,7 @@ test('config lines show each agent value with the level that provided it', () =>
   expect(lines).toContain('auto-escalation: off')
 })
 
-test('/zboard config prints the effective configuration with sources', async ($, on) => {
+test('/zboard config prints the effective configuration with sources', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   w.files.set('/repo/.zboard/config.json', '{"agents":{"reviewer":{"model":"opus 5.5","effort":"max"},"implementer":{"effort":"ultra"}}}')
@@ -25,13 +27,13 @@ test('/zboard config prints the effective configuration with sources', async ($,
   expect(text).toContain('⚠ project implementer effort "ultra" is invalid; using medium')
 })
 
-test('/zboard set before any change is loaded names the unknown task', async ($, on) => {
+test('/zboard set before any change is loaded names the unknown task', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   installWorld(on)
   await boot($)
   expect(await zboard($, 'set 1.1 researcher opus 5.5 high')).toBe('zboard: unknown task 1.1')
 })
 
-test('/zboard set applies to the next spawn of that task only', async ($, on) => {
+test('/zboard set applies to the next spawn of that task only', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w, '## 1. Core\n\n- [ ] 1.1 Parse tasks\n- [ ] 1.2 Flip lines\n')
   await boot($)
@@ -45,7 +47,7 @@ test('/zboard set applies to the next spawn of that task only', async ($, on) =>
   expect((await taskOf($, '1.1')).overrides).toEqual({ researcher: { model: 'opus 5.5', effort: 'high' }, implementer: { model: 'opus 5.5', effort: 'high' } })
 })
 
-test('/zboard set rejects unknown agents, models and efforts', async ($, on) => {
+test('/zboard set rejects unknown agents, models and efforts', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   await boot($)

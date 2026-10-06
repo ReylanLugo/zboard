@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
+
 import type { Io } from '../runtime/io.ts'
 import { newTask } from '../domain/types.ts'
 import { installWorld, worldIo } from '../testing/world.ts'
@@ -29,13 +31,13 @@ test('the phase prompt carries the task, files, prior artifacts, failure reason,
   expect(prompt).toContain('<zboard-comment author="user" id="c1">use the cache</zboard-comment>')
 })
 
-test('registerAgentTypes registers the six zboard types', async ($, on) => {
+test('registerAgentTypes registers the six zboard types', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   await ((async ($: Io) => { await registerAgentTypes($); return null }))(worldIo(w))
   expect([...w.agentSpecs.keys()]).toEqual(['researcher', 'planner', 'tdd', 'implementer', 'reviewer', 'refactorer'])
 })
 
-test('spawnRole re-registers the role with its effort, then spawns with the model', async ($, on) => {
+test('spawnRole re-registers the role with its effort, then spawns with the model', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   expect(await ((($: Io) => spawnRole($, {
   role: 'implementer', prompt: 'do it', description: '2.1 code', model: 'claude-opus-5-5', effort: 'high',
@@ -44,13 +46,13 @@ test('spawnRole re-registers the role with its effort, then spawns with the mode
   expect(w.spawns[0]).toMatchObject({ subagentType: 'zboard:implementer', prompt: 'do it', model: 'claude-opus-5-5' })
 })
 
-test('a denied spawn is reported as a deny', async ($, on) => {
+test('a denied spawn is reported as a deny', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   w.spawnDeny = 'agent limit reached'
   expect(await ((($: Io) => spawnRole($, { role: 'planner', prompt: 'p', description: 'd', model: 'claude-opus-5-5' })))(worldIo(w))).toEqual({ deny: 'agent limit reached' })
 })
 
-test('zboard agent types are hidden from the model; others are offered', async ($, on) => {
+test('zboard agent types are hidden from the model; others are offered', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   installWorld(on)
   const provider = { plugin: 'zboard', tier: 'user' as const }
   expect(await $.agent.offer({ agent: 'zboard:planner', description: 'd', source: 'plugin', provider })).toEqual({ isOffered: false })

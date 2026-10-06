@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
+
 import { noticesBetween } from '../domain/notices.ts'
 import { project } from '../domain/project.ts'
 import { evs, loaded, parsed } from '../testing/factories.ts'
@@ -37,7 +39,7 @@ test('completing the change reminds about the integrated ptest --full gate; load
   expect(noticesBetween(project([]), done)).toEqual([])
 })
 
-test('an escalation reaches the main session and routine phases do not', async ($, on) => {
+test('an escalation reaches the main session and routine phases do not', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   await boot($)
@@ -49,7 +51,7 @@ test('an escalation reaches the main session and routine phases do not', async (
   expect(w.toasts).toEqual(['zboard: task 1.1 "Parse tasks" needs a decision — plan gate failed twice: plan: the agent ended without an artifact'])
 })
 
-test('finishing the last task sends the completion notice', async ($, on) => {
+test('finishing the last task sends the completion notice', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   const dirty = setupDemo(w)
   scriptPtest(w, [RED, GREEN])

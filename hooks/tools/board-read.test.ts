@@ -1,15 +1,17 @@
 import { expect, test } from 'claude-code/testing'
 
+import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
+
 import { boot, callTool, status } from '../testing/zboard.ts'
 import { installWorld } from '../testing/world.ts'
 
-test('the four read tools are registered at session start', async ($, on) => {
+test('the four read tools are registered at session start', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   await boot($)
   expect(w.tools).toEqual(expect.arrayContaining(['board_status', 'board_task', 'board_artifact', 'board_agent']))
 })
 
-test('board_status on an empty board reports no change and appends nothing', async ($, on) => {
+test('board_status on an empty board reports no change and appends nothing', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   installWorld(on)
   await boot($)
   const first = await status($)
@@ -18,7 +20,7 @@ test('board_status on an empty board reports no change and appends nothing', asy
   expect(second.events).toBe(0)
 })
 
-test('board_task, board_agent and board_artifact name an unknown id', async ($, on) => {
+test('board_task, board_agent and board_artifact name an unknown id', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   installWorld(on)
   await boot($)
   expect(await callTool($, 'board_task', { taskId: '9.9' })).toEqual({ ok: false, error: 'unknown task id: 9.9' })

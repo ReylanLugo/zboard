@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+import { PLUGIN_TEST_TIMEOUT_MS } from './timeouts.ts'
+
 import { absPath, argvIs, installWorld, spawnInput, worldIo } from './world.ts'
 
 test('world: absPath resolves relative and dotted paths under the root', () => {
@@ -8,7 +10,7 @@ test('world: absPath resolves relative and dotted paths under the root', () => {
   expect(absPath('./x/./y')).toBe('/repo/x/y')
 })
 
-test('world: Engram saves upsert by topic and are searchable by id', async ($, on) => {
+test('world: Engram saves upsert by topic and are searchable by id', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   await $.tool.call({ tool: 'mcp__engram__mem_save', title: 't', topic_key: 'zboard/p/c/1.1', content: 'one' })
   await $.tool.call({ tool: 'mcp__engram__mem_save', title: 't', topic_key: 'zboard/p/c/1.1', content: 'two' })
@@ -19,7 +21,7 @@ test('world: Engram saves upsert by topic and are searchable by id', async ($, o
   expect(got.text).toContain('two')
 })
 
-test('world: spawn mints agent ids and honours spawnDeny', async ($, on) => {
+test('world: spawn mints agent ids and honours spawnDeny', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   await $.agent.spawn(spawnInput('p', 'zboard:researcher'))
   expect(w.spawns[0]?.agentId).toBe('agent-1')
@@ -28,7 +30,7 @@ test('world: spawn mints agent ids and honours spawnDeny', async ($, on) => {
   expect(second.deny).toBe('no agents today')
 })
 
-test('world: worldIo answers adapter code as the hooks answer the plugin', async (_$, on) => {
+test('world: worldIo answers adapter code as the hooks answer the plugin', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async (_$, on) => {
   const w = installWorld(on)
   w.rules.push({ match: argvIs('git', 'status'), answer: { exitCode: 0, stdout: 'clean' } })
   const io = worldIo(w)

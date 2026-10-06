@@ -1,11 +1,13 @@
 import { expect, test } from 'claude-code/testing'
 
+import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
+
 import {
   ANSWERS, GREEN, RED, TWO_TASKS, agentOf, boot, callTool, lastAgent, scriptPtest, setupDemo, status, stopAgent, taskOf, zboard,
 } from '../testing/zboard.ts'
 import { argvIs, installWorld, worldIo } from '../testing/world.ts'
 
-test('a task walks research → plan → tdd → code → review → done with no main-session action', async ($, on) => {
+test('a task walks research → plan → tdd → code → review → done with no main-session action', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   const dirty = setupDemo(w)
   scriptPtest(w, [RED, GREEN])
@@ -25,7 +27,7 @@ test('a task walks research → plan → tdd → code → review → done with n
   expect(w.runs.filter(argv => argv[0] === 'ptest')).toEqual([['ptest', 'tests/a.test.ts'], ['ptest', 'tests/a.test.ts']])
 })
 
-test('the planner prompt contains the stored research artifact', async ($, on) => {
+test('the planner prompt contains the stored research artifact', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   await boot($)
@@ -35,7 +37,7 @@ test('the planner prompt contains the stored research artifact', async ($, on) =
   expect(w.spawns[1]?.prompt).toContain('the parser lives here')
 })
 
-test('pause lets in-flight phases finish and spawns nothing new until resumed', async ($, on) => {
+test('pause lets in-flight phases finish and spawns nothing new until resumed', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w, TWO_TASKS)
   await boot($)
@@ -49,7 +51,7 @@ test('pause lets in-flight phases finish and spawns nothing new until resumed', 
   expect(w.spawns.slice(2).map(spawn => spawn.subagentType)).toEqual(['zboard:planner', 'zboard:planner'])
 })
 
-test('a second SubagentStop for the same agent is ignored', async ($, on) => {
+test('a second SubagentStop for the same agent is ignored', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   await boot($)
@@ -60,7 +62,7 @@ test('a second SubagentStop for the same agent is ignored', async ($, on) => {
   expect((await taskOf($, '1.1')).phases).toHaveLength(1)
 })
 
-test('a git failure for one task is recorded as a ModError and the other task continues', async ($, on) => {
+test('a git failure for one task is recorded as a ModError and the other task continues', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w, TWO_TASKS)
   await boot($)
@@ -73,7 +75,7 @@ test('a git failure for one task is recorded as a ModError and the other task co
   expect(board.tasks.find(task => task.id === '1.2')?.phase).toBe('plan')
 })
 
-test('artifacts are stored, truncated past 50,000 characters, and readable with board_artifact', async ($, on) => {
+test('artifacts are stored, truncated past 50,000 characters, and readable with board_artifact', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   await boot($)
@@ -88,7 +90,7 @@ test('artifacts are stored, truncated past 50,000 characters, and readable with 
   expect(await agentOf($, 'agent-1')).toMatchObject({ transcriptPath: '/t/agent-1.jsonl', outcome: 'ok' })
 })
 
-test('a phase evaluation that throws needs a decision and frees its slot for the next task', async ($, on) => {
+test('a phase evaluation that throws needs a decision and frees its slot for the next task', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w, '## 1. Core\n\n- [ ] 1.1 A\n- [ ] 1.2 B\n- [ ] 1.3 C\n- [ ] 1.4 D\n')
   await boot($)

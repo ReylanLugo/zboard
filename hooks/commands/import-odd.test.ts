@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
+
 import { installWorld, worldIo } from '../testing/world.ts'
 import { boot, seedEngram, zboard } from '../testing/zboard.ts'
 
@@ -11,7 +13,7 @@ const ODD = [
 ].join('\n')
 const digestIn = (text: string): string => /--confirm ([0-9a-f]{8})/.exec(text)?.[1] ?? 'missing'
 
-test('the preview writes nothing, lists unparsed lines and asks for confirmation', async ($, on) => {
+test('the preview writes nothing, lists unparsed lines and asks for confirmation', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   w.files.set(SOURCE, ODD)
   await boot($)
@@ -21,7 +23,7 @@ test('the preview writes nothing, lists unparsed lines and asks for confirmation
   expect([...w.files.keys()].filter(path => path.includes('openspec/changes/parser'))).toEqual([])
 })
 
-test('confirming with the digest writes the change, keeps [x], stores history and leaves the source untouched', async ($, on) => {
+test('confirming with the digest writes the change, keeps [x], stores history and leaves the source untouched', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   w.files.set(SOURCE, ODD)
   await boot($)
@@ -33,7 +35,7 @@ test('confirming with the digest writes the change, keeps [x], stores history an
   expect(history?.content).toContain('"label":"1.2","route":"inline","commit":"abc123"')
 })
 
-test('an existing change directory is refused and nothing is written', async ($, on) => {
+test('an existing change directory is refused and nothing is written', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   w.files.set(SOURCE, ODD)
   w.files.set('/repo/openspec/changes/parser/proposal.md', 'mine')
@@ -42,14 +44,14 @@ test('an existing change directory is refused and nothing is written', async ($,
   expect(w.files.get('/repo/openspec/changes/parser/proposal.md')).toBe('mine')
 })
 
-test('a traversal feature name is rejected before any read or write', async ($, on) => {
+test('a traversal feature name is rejected before any read or write', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   await boot($)
   expect(await zboard($, 'import-odd ../../etc')).toBe('zboard: invalid feature name "../../etc"')
   expect(w.files.size).toBe(0)
 })
 
-test('a newer Engram mirror wins over the local file', async ($, on) => {
+test('a newer Engram mirror wins over the local file', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   w.files.set(SOURCE, ODD)
   seedEngram(w, 'odd/parser/tasks', `Updated: 2026-10-04 12:00:00\n${ODD.replace('Add parser', 'Add streaming parser')}`)
@@ -59,7 +61,7 @@ test('a newer Engram mirror wins over the local file', async ($, on) => {
   expect(preview).toContain('Source: Engram odd/parser/tasks')
 })
 
-test('a stale digest is refused and a fresh preview is shown', async ($, on) => {
+test('a stale digest is refused and a fresh preview is shown', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   w.files.set(SOURCE, ODD)
   await boot($)

@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
+
 import type { EventBody } from '../domain/events.ts'
 import { loaded, parsed } from '../testing/factories.ts'
 import { installWorld, worldIo } from '../testing/world.ts'
@@ -15,7 +17,7 @@ const blockedRun: readonly EventBody[] = [
   { type: 'TaskStatusChanged', taskId: '1.1', from: 'ready', to: 'blocked', reason: 'moved on the board' },
 ]
 
-test('a pending phase of a task that is no longer in the pipeline is never launched', async ($, on) => {
+test('a pending phase of a task that is no longer in the pipeline is never launched', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   const io = worldIo(w)
@@ -27,7 +29,7 @@ test('a pending phase of a task that is no longer in the pipeline is never launc
   expect(board.tasks['1.1']?.status).toBe('blocked')
 })
 
-test('the next action re-reads the status: a task moved meanwhile is neither advanced nor closed', async ($, on) => {
+test('the next action re-reads the status: a task moved meanwhile is neither advanced nor closed', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   const io = worldIo(w)

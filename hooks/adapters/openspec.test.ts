@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
+
 import { installWorld, worldIo } from '../testing/world.ts'
 import { flipTask, isChangeName, loadChange } from './openspec.ts'
 
@@ -13,7 +15,7 @@ test('change names are filename-safe identifiers', () => {
   expect(isChangeName('')).toBe(false)
 })
 
-test('loadChange reads and parses tasks.md', async ($, on) => {
+test('loadChange reads and parses tasks.md', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   w.files.set(PATH, TASKS)
   const result = await ($ => loadChange($, 'demo'))(worldIo(w))
@@ -21,7 +23,7 @@ test('loadChange reads and parses tasks.md', async ($, on) => {
   expect((result as unknown as { tasks: { label: string }[] }).tasks.map(task => task.label)).toEqual(['1.1', '1.2'])
 })
 
-test('loadChange rejects a traversal name and a missing change', async ($, on) => {
+test('loadChange rejects a traversal name and a missing change', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   expect(await (async $ => [await loadChange($, '../../etc'), await loadChange($, 'nope')])(worldIo(w))).toEqual([
     { ok: false, reason: 'invalid change name: ../../etc' },
@@ -29,14 +31,14 @@ test('loadChange rejects a traversal name and a missing change', async ($, on) =
   ])
 })
 
-test('flipTask writes the flipped line when the line is unchanged', async ($, on) => {
+test('flipTask writes the flipped line when the line is unchanged', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   w.files.set(PATH, TASKS)
   expect(await ($ => flipTask($, 'demo', '1.1', '- [ ] 1.1 Parse tasks'))(worldIo(w))).toEqual({ ok: true })
   expect(w.files.get(PATH)).toBe('## 1. Core\n\n- [x] 1.1 Parse tasks\n- [ ] 1.2 Flip\n')
 })
 
-test('flipTask writes nothing when the user edited the line', async ($, on) => {
+test('flipTask writes nothing when the user edited the line', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   const edited = TASKS.replace('Parse tasks', 'Parse tasks fast')
   w.files.set(PATH, edited)

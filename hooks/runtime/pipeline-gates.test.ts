@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
+
 import type { Engine } from 'claude-code/testing'
 import type { World } from '../testing/world.ts'
 import { installWorld, worldIo } from '../testing/world.ts'
@@ -22,7 +24,7 @@ async function toReview($: Engine, w: World, dirty: Map<string, string>): Promis
   await stopAgent($, lastAgent(w), ANSWERS.code)
 }
 
-test('a changes verdict spawns a refactor, increments loop, then reviews again', async ($, on) => {
+test('a changes verdict spawns a refactor, increments loop, then reviews again', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   const dirty = setupDemo(w)
   scriptPtest(w, [RED, GREEN, GREEN])
@@ -36,7 +38,7 @@ test('a changes verdict spawns a refactor, increments loop, then reviews again',
   expect((await taskOf($, '1.1')).loop).toBe(1)
 })
 
-test('at the loop cap a changes verdict needs a decision and spawns no refactor', async ($, on) => {
+test('at the loop cap a changes verdict needs a decision and spawns no refactor', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   const dirty = setupDemo(w)
   scriptPtest(w, [RED, GREEN, GREEN, GREEN, GREEN])
@@ -52,7 +54,7 @@ test('at the loop cap a changes verdict needs a decision and spawns no refactor'
   expect(await taskOf($, '1.1')).toMatchObject({ status: 'needs_decision', loop: 3, statusReason: 'review loop cap reached (3) with changes requested' })
 })
 
-test('a first gate failure relaunches the phase with the reason; a second needs a decision', async ($, on) => {
+test('a first gate failure relaunches the phase with the reason; a second needs a decision', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   const dirty = setupDemo(w)
   scriptPtest(w, [RED, RED, RED])
@@ -67,7 +69,7 @@ test('a first gate failure relaunches the phase with the reason; a second needs 
   })
 })
 
-test('an agent that stops without an artifact is retried once, then escalated', async ($, on) => {
+test('an agent that stops without an artifact is retried once, then escalated', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   await boot($)
@@ -78,7 +80,7 @@ test('an agent that stops without an artifact is retried once, then escalated', 
   expect(await taskOf($, '1.1')).toMatchObject({ status: 'needs_decision', statusReason: 'research gate failed twice: research: the agent ended without an artifact' })
 })
 
-test('a plan that authorizes a path outside the repository fails and never reaches tdd', async ($, on) => {
+test('a plan that authorizes a path outside the repository fails and never reaches tdd', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   await boot($)
@@ -91,7 +93,7 @@ test('a plan that authorizes a path outside the repository fails and never reach
   expect((await taskOf($, '1.1')).statusReason).toBe('plan gate failed twice: plan: paths outside the repository: ../outside/secret.ts')
 })
 
-test('tdd tests that pass at once fail the gate: RED was not observed', async ($, on) => {
+test('tdd tests that pass at once fail the gate: RED was not observed', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   scriptPtest(w, [GREEN])
@@ -103,7 +105,7 @@ test('tdd tests that pass at once fail the gate: RED was not observed', async ($
   expect(w.spawns.at(-1)?.prompt).toContain('Previous gate failure — fix this first: tdd: tests passed; RED was not observed')
 })
 
-test('a reviewer approving in free text does not finish the task', async ($, on) => {
+test('a reviewer approving in free text does not finish the task', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   const dirty = setupDemo(w)
   scriptPtest(w, [RED, GREEN])
@@ -113,7 +115,7 @@ test('a reviewer approving in free text does not finish the task', async ($, on)
   expect(w.spawns.at(-1)?.prompt).toContain('review: no valid ReviewVerdict JSON')
 })
 
-test('ptest incomplete twice in a row needs a decision that carries the end line', async ($, on) => {
+test('ptest incomplete twice in a row needs a decision that carries the end line', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   const dirty = setupDemo(w)
   scriptPtest(w, [RED, INCOMPLETE, INCOMPLETE])
@@ -125,7 +127,7 @@ test('ptest incomplete twice in a row needs a decision that carries the end line
   })
 })
 
-test('a read-only phase that changed files fails its gate', async ($, on) => {
+test('a read-only phase that changed files fails its gate', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   const dirty = setupDemo(w)
   await boot($)

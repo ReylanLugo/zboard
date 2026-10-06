@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
+
 import type { Io } from '../runtime/io.ts'
 import { argvIs, installWorld, worldIo } from '../testing/world.ts'
 import { commitMessage, commitTask, parsePorcelainZ, snapshot, touchedBetween } from './git.ts'
@@ -22,7 +24,7 @@ test('touchedBetween finds new, changed and reverted paths', () => {
   expect(touchedBetween(before, after)).toEqual(['b.ts', 'c.ts', 'd.ts'])
 })
 
-test('snapshot hashes present files and marks deletions', async ($, on) => {
+test('snapshot hashes present files and marks deletions', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   w.rules.push({ match: argvIs('git', 'status'), answer: { stdout: ' M src/a.ts\0 D gone.ts\0' } })
   w.rules.push({ match: argvIs('git', 'hash-object'), answer: { stdout: 'abc123\n' } })
@@ -30,7 +32,7 @@ test('snapshot hashes present files and marks deletions', async ($, on) => {
   expect(w.runs[1]).toEqual(['git', 'hash-object', '--', 'src/a.ts'])
 })
 
-test('commits exactly the task files with --only and never -A', async ($, on) => {
+test('commits exactly the task files with --only and never -A', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   w.rules.push({ match: argvIs('git', 'add'), answer: {} })
   w.rules.push({ match: argvIs('git', 'commit'), answer: {} })
@@ -44,14 +46,14 @@ test('commits exactly the task files with --only and never -A', async ($, on) =>
   expect(w.runs.flat()).not.toContain('-A')
 })
 
-test('a failing commit is reported', async ($, on) => {
+test('a failing commit is reported', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   w.rules.push({ match: argvIs('git', 'add'), answer: {} })
   w.rules.push({ match: argvIs('git', 'commit'), answer: { exitCode: 1, stderr: 'error: pathspec did not match\n' } })
   expect(await ((($: Io) => commitTask($, request)))(worldIo(w))).toEqual({ ok: false, reason: 'git commit failed: error: pathspec did not match' })
 })
 
-test('a commit whose content differs from the task files is reported', async ($, on) => {
+test('a commit whose content differs from the task files is reported', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   w.rules.push({ match: argvIs('git', 'add'), answer: {} })
   w.rules.push({ match: argvIs('git', 'commit'), answer: {} })
@@ -59,14 +61,14 @@ test('a commit whose content differs from the task files is reported', async ($,
   expect(await ((($: Io) => commitTask($, request)))(worldIo(w))).toEqual({ ok: false, reason: "commit content differs from the task's files: src/a.ts, src/unrelated.ts, tests/a.test.ts" })
 })
 
-test('snapshot fails when git hash-object fails part-way (a nested repository): unknown never counts as unchanged', async ($, on) => {
+test('snapshot fails when git hash-object fails part-way (a nested repository): unknown never counts as unchanged', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   w.rules.push({ match: argvIs('git', 'status'), answer: { stdout: '?? a.ts\0?? nested/\0?? z.ts\0' } })
   w.rules.push({ match: argvIs('git', 'hash-object'), answer: { exitCode: 128, stdout: 'abc123\n', stderr: "fatal: could not open 'nested/' for reading: Is a directory\n" } })
   await expect(snapshot(worldIo(w), '/repo')).rejects.toThrow("git hash-object failed: fatal: could not open 'nested/' for reading: Is a directory")
 })
 
-test('snapshot fails when git hash-object answers fewer hashes than paths', async ($, on) => {
+test('snapshot fails when git hash-object answers fewer hashes than paths', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   w.rules.push({ match: argvIs('git', 'status'), answer: { stdout: '?? a.ts\0?? b.ts\0' } })
   w.rules.push({ match: argvIs('git', 'hash-object'), answer: { stdout: 'abc123\n' } })

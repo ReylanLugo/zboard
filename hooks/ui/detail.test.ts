@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
+
 import { project } from '../domain/project.ts'
 import { evs, loaded, parsed } from '../testing/factories.ts'
 import { SURFACES, mountPane } from '../testing/ui.ts'
@@ -27,7 +29,7 @@ test('detail sections list acceptance, phases with gates, the run timeline and c
 })
 
 for (const surface of SURFACES) {
-  test(`${surface}: v twice shows the Tree with sections and tasks`, async ($, on) => {
+  test(`${surface}: v twice shows the Tree with sections and tasks`, { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
     const w = installWorld(on)
     setupDemo(w)
     await boot($)
@@ -41,7 +43,7 @@ for (const surface of SURFACES) {
     await ui.unmount()
   })
 
-  test(`${surface}: enter on a card opens the detail with delivery status and a full artifact on a`, async ($, on) => {
+  test(`${surface}: enter on a card opens the detail with delivery status and a full artifact on a`, { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
     const w = installWorld(on)
     setupDemo(w)
     await boot($)

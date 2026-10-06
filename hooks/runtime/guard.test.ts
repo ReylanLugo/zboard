@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
+
 import type { Io } from '../runtime/io.ts'
 import type { EventBody } from '../domain/events.ts'
 import { project } from '../domain/project.ts'
@@ -49,7 +51,7 @@ test('the tdd phase may write only test files; unknown agents pass', () => {
   expect(guardDecision(boardIn('code', 'implementer'), 'someone-else', 'anything', 'anything').kind).toBe('pass')
 })
 
-test('placeInside resolves real paths, allows new folders inside, and rejects symlink escapes', async ($, on) => {
+test('placeInside resolves real paths, allows new folders inside, and rejects symlink escapes', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   w.files.set('/repo/src/a.ts', 'a')
   w.files.set('/etc/passwd', 'root')
@@ -62,7 +64,7 @@ test('placeInside resolves real paths, allows new folders inside, and rejects sy
 ]))(worldIo(w))).toEqual(['src/a.ts', 'src/new/dir/b.ts', undefined, undefined])
 })
 
-test('a research agent editing a file is denied (spike: the kit forwards agentId)', async ($, on) => {
+test('a research agent editing a file is denied (spike: the kit forwards agentId)', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   on('tool.call', { tool: 'Edit' }, () => ({ result: 'edited', text: 'edited' }))

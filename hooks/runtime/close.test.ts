@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
+
 import type { Engine } from 'claude-code/testing'
 import type { World } from '../testing/world.ts'
 import { argvIs, installWorld, worldIo } from '../testing/world.ts'
@@ -20,7 +22,7 @@ async function approve($: Engine, w: World, dirty: Map<string, string>, edits = 
   await stopAgent($, lastAgent(w), ANSWERS.approve)
 }
 
-test('an approved task is committed with only its files and its tasks.md line is flipped', async ($, on) => {
+test('an approved task is committed with only its files and its tasks.md line is flipped', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   const dirty = setupDemo(w)
   await approve($, w, dirty)
@@ -31,7 +33,7 @@ test('an approved task is committed with only its files and its tasks.md line is
   expect((await status($)).running).toBe(false)
 })
 
-test('unrelated modified files in the working tree are not staged', async ($, on) => {
+test('unrelated modified files in the working tree are not staged', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   const dirty = setupDemo(w)
   dirty.set('notes/todo.md', 'n1')
@@ -39,7 +41,7 @@ test('unrelated modified files in the working tree are not staged', async ($, on
   expect(w.runs.filter(argv => argv[1] === 'add')).toEqual([['git', 'add', '--', 'tests/a.test.ts', 'src/a.ts']])
 })
 
-test('a failing commit leaves the checkbox unchecked and needs a decision', async ($, on) => {
+test('a failing commit leaves the checkbox unchecked and needs a decision', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   const dirty = setupDemo(w)
   w.rules.unshift({ match: argvIs('git', 'commit'), answer: { exitCode: 1, stderr: 'error: hook rejected the commit\n' } })
@@ -48,7 +50,7 @@ test('a failing commit leaves the checkbox unchecked and needs a decision', asyn
   expect(await taskOf($, '1.1')).toMatchObject({ status: 'needs_decision', statusReason: 'git commit failed: error: hook rejected the commit' })
 })
 
-test('a commit whose content differs from the task files is not flipped', async ($, on) => {
+test('a commit whose content differs from the task files is not flipped', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   const dirty = setupDemo(w)
   w.rules.unshift({ match: argvIs('git', 'show'), answer: { stdout: 'c0ffee\n\nsrc/a.ts\nsrc/extra.ts\ntests/a.test.ts\n' } })
@@ -57,7 +59,7 @@ test('a commit whose content differs from the task files is not flipped', async 
   expect((await taskOf($, '1.1')).statusReason).toBe("commit content differs from the task's files: src/a.ts, src/extra.ts, tests/a.test.ts")
 })
 
-test('a tasks.md line edited after it was read is not written and needs a decision', async ($, on) => {
+test('a tasks.md line edited after it was read is not written and needs a decision', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   const dirty = setupDemo(w)
   scriptPtest(w, [RED, GREEN])
@@ -75,7 +77,7 @@ test('a tasks.md line edited after it was read is not written and needs a decisi
   expect((await taskOf($, '1.1')).statusReason).toBe('committed c0ffee1 but tasks.md was not updated: line for 1.1 changed since it was read')
 })
 
-test('a task that touched no files is not committed', async ($, on) => {
+test('a task that touched no files is not committed', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   const dirty = setupDemo(w)
   await approve($, w, dirty, false)
@@ -83,7 +85,7 @@ test('a task that touched no files is not committed', async ($, on) => {
   expect((await taskOf($, '1.1')).statusReason).toBe('nothing to commit: the task touched no files')
 })
 
-test('a file a failed attempt changed outside the scope is never committed: the close needs a decision', async ($, on) => {
+test('a file a failed attempt changed outside the scope is never committed: the close needs a decision', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   const dirty = setupDemo(w)
   scriptPtest(w, [RED, GREEN])

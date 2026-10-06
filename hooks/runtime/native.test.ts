@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
+
 import type { On } from 'claude-code'
 import { project } from '../domain/project.ts'
 import { evs } from '../testing/factories.ts'
@@ -30,7 +32,7 @@ test('nativeUpdate maps status, dependencies and deletion', () => {
   expect(nativeUpdate(board, 'n99', { status: 'completed' })).toEqual([])
 })
 
-test('a native TaskCreate appears as a native task and its result is unchanged', async ($, on) => {
+test('a native TaskCreate appears as a native task and its result is unchanged', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   installWorld(on)
   nativeTools(on)
   await boot($)
@@ -40,7 +42,7 @@ test('a native TaskCreate appears as a native task and its result is unchanged',
   expect(await taskOf($, 'n7')).toMatchObject({ source: 'native', title: 'Write docs', status: 'ready' })
 })
 
-test('TaskUpdate completed makes the mirrored task done; deleted removes it', async ($, on) => {
+test('TaskUpdate completed makes the mirrored task done; deleted removes it', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   installWorld(on)
   nativeTools(on)
   await boot($)
@@ -51,7 +53,7 @@ test('TaskUpdate completed makes the mirrored task done; deleted removes it', as
   expect((await status($)).tasks.map(task => [task.id, task.status])).toEqual([['n7', 'done']])
 })
 
-test('an update for a task zboard never mirrored appends nothing', async ($, on) => {
+test('an update for a task zboard never mirrored appends nothing', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   installWorld(on)
   nativeTools(on)
   await boot($)

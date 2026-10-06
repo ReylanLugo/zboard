@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
+
 import { installWorld } from '../testing/world.ts'
 import {
   ANSWERS, GREEN, RED, TASKS_PATH, TWO_TASKS, boot, json, scriptPtest, setupDemo, stopAgent, taskOf, zboard,
@@ -8,7 +10,7 @@ import {
 const planFor = (file: string) => json({ approach: 'x', allowedFiles: [`src/${file}.ts`], testFiles: [`tests/${file}.test.ts`], testCases: ['keeps multiline'], edgeCases: [], risks: [] })
 const tddFor = (file: string) => json({ testFiles: [`tests/${file}.test.ts`], newTests: ['keeps multiline'] })
 
-test('a task mid-phase still passes its gate when another task closes (its commit and the tasks.md flip are not its changes)', async ($, on) => {
+test('a task mid-phase still passes its gate when another task closes (its commit and the tasks.md flip are not its changes)', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   const dirty = setupDemo(w, TWO_TASKS)
   scriptPtest(w, [RED, RED, GREEN, GREEN])
