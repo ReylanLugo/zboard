@@ -86,17 +86,18 @@ New modules (tests colocated as `*.test.ts`):
 
 | Path | Responsibility |
 |------|----------------|
-| `hooks/plan/lifecycle.ts` | Pure state machine `next(change, input) → PlanAction[]` over `ChangeStage`. |
+| `hooks/plan/lifecycle.ts` | Pure lifecycle rules over `ChangeRecord`: `stageOf`, `groupOf`, `nextArtifact`, `actionsFor` (each action gated with a reason), `verifyPassed`, `affectedRequirements`. |
 | `hooks/plan/plan-events.ts` | Closed union of plan events. |
 | `hooks/plan/plan-project.ts` | Pure fold `projectPlan(events) → PlanBoard` (`Record<changeId, ChangeRecord>`). |
 | `hooks/plan/readiness.ts` | Pure readiness checklist over parsed artifacts and CLI results. |
 | `hooks/plan/structure.ts` | Pure structural model and layered layout from `tasks.md`; SVG and ASCII renderers. |
 | `hooks/plan/proposals.ts` | Pure diff-proposal rules: build, stale check, apply plan, revert plan, write scope. |
-| `hooks/plan/findings.ts` | Pure verdict normalization, resolution rules, affected-item selection, verify pass rule. |
+| `hooks/plan/findings.ts` | Pure verdict normalization, resolution rules, citable test paths, `verify.md` text (affected-item selection and the verify pass rule live in `lifecycle.ts`, which the fold uses). |
+| `hooks/plan/diff.ts`, `hash.ts`, `contracts.ts`, `forecast.ts`, `plan-log.ts` | Pure Myers unified diff, FNV-1a fingerprint, the five agent JSON contracts, the plan-step forecast, and the compacted plan log. |
 | `hooks/adapters/openspec-cli.ts` | `list`, `status`, `instructions`, `validate`, `new change`, `archive` with `--json` via `io.process.run`; output parsing. |
-| `hooks/adapters/artifacts.ts` | Artifact read/write through `io.fs`, change fingerprint, textual unified diff. |
+| `hooks/adapters/artifacts.ts` | Artifact read/write/remove through `Io` (`fs.list` port added; removal of a new file on revert runs `rm -f --` from the root), change fingerprint, glob matching of CLI output paths. |
 | `hooks/adapters/prompts-plan.ts` | Prompts for the five plan agents; user text delimited as data. |
-| `hooks/runtime/plan-runner.ts` | Executes `PlanAction`s through `Io`; owns the one-agent-per-change slot and retries. |
+| `hooks/runtime/plan-runner.ts` | Runs plan jobs through `Io` (`defineJob`/`startJob`/`planStop`); owns the one-agent-per-change slot and the single retry. Flows live beside it: `plan-catalog`, `plan-draft`, `plan-apply`, `plan-brainstorm`, `plan-forecast`, `plan-explain`, `plan-critique`, `plan-run`, `plan-verify`, `plan-archive`, `plan-mirror`, `plan-recovery`, `plan-open`, `plan-docs`. |
 | `hooks/ui/ChangesPane.tsx`, `ChangeDetail.tsx`, `DiffView.tsx`, `QaView.tsx` | Rendering only. |
 
 Reused unchanged or extended in place: `adapters/tasks-md.ts` (parser and
@@ -154,6 +155,7 @@ interface ChangeRecord {
   readonly critique?: readonly Finding[]; readonly verify?: VerifyRun
   readonly explanation?: { readonly key: string; readonly fingerprint: string }
   readonly activeAgent?: { readonly agentId: string; readonly role: PlanRole; readonly startedAt: number }
+  readonly retryable?: ActiveAgent                    // interrupted or twice-failed; offered for retry
 }
 interface ArtifactState { readonly id: string; readonly status: 'blocked' | 'ready' | 'done'; readonly path: string }
 interface QaSession { readonly turns: readonly { question: string; options: readonly string[]; why: string; answer?: string }[]; readonly done: boolean }
@@ -188,7 +190,10 @@ the board log. Events (closed union): `ChangesListed`, `ChangeCreated`,
 `ProposalAccepted`, `ProposalRejected`, `ExplanationCached`, `CritiqueRecorded`,
 `RunStarted`, `ExecutionFinished`, `VerifyRecorded`, `FindingResolved`,
 `RetrospectiveAccepted`, `ChangeArchived`, `PlanAgentStarted`,
-`PlanAgentStopped`, `PlanError`. `ChangesListed` carries each change's CLI
+`PlanAgentStopped`, `PlanError`, plus `ProposalStale` (recorded by the runtime,
+which can read files, when a pending proposal's file no longer matches its
+`before`), `ArchiveStarted` (the `archiving` stage), `PlanRestored` (Engram
+mirror restore) and `PlanMirrorState` (`⚠ mirror pending`). `ChangesListed` carries each change's CLI
 status and fingerprint, so a fingerprint difference is observed by the fold.
 
 Fold rules:
@@ -350,7 +355,8 @@ proposal on its artifact. Critique never blocks Run.
   change.
 - **Mermaid rendering**: the mod probes `mmdc --version` once per session. When
   present, each diagram is rendered through `io.process.run` to SVG (desktop,
-  `Svg`) or PNG (terminal, `Image`). When absent or failing, the Mermaid source
+  `Svg`, read from stdout) or PNG (terminal, `Image`, written under
+  `/tmp/zboard-mermaid`, never inside the repository). When absent or failing, the Mermaid source
   is shown in a `Code` block with the hint
   `npm i -g @mermaid-js/mermaid-cli`.
 
