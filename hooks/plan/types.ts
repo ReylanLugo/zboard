@@ -134,7 +134,7 @@ export interface Finding {
   readonly requirement: string
   readonly scenario?: string
   readonly verdict: Verdict
-  /** `path:line` citations and `ptest <file>: <end line>` entries. */
+  /** `path:line` citations and `<test command>: <end line>` entries (`ptest <file>` by default). */
   readonly evidence: readonly string[]
   readonly resolution?: Resolution
   /** tasks.md label of the task added for this finding. */
