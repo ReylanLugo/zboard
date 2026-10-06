@@ -1,6 +1,6 @@
 ## 1. Plan domain
 
-- [ ] 1.1 Plan types and the kebab-case change-name rule in `hooks/plan/types.ts` [req: Change-name validation]
+- [x] 1.1 Plan types and the kebab-case change-name rule in `hooks/plan/types.ts` [req: Change-name validation]
 - [ ] 1.2 Lifecycle: stage derivation, list grouping, next artifact, re-judge scope and action gates in `hooks/plan/lifecycle.ts` [req: Stage derivation; Archive preconditions; Verify only after execution; Run gated by readiness; Verify pass rule and verify.md; Targeted re-judge]
 - [ ] 1.3 Plan events, the pure fold and the compacted plan log in `hooks/plan/{plan-events,plan-project,plan-log}.ts` [req: Plan state persistence and recovery; Diff proposals; One active plan agent per change]
 
