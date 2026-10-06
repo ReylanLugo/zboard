@@ -23,7 +23,7 @@
 
 ## 5. Runner and authoring
 
-- [ ] 5.1 Plan runner core: one agent per change, spawn with resolved model, stop capture, one retry, token history [req: One active plan agent per change; Agent output validation; Read-only plan agents]
+- [x] 5.1 Plan runner core: one agent per change, spawn with resolved model, stop capture, one retry, token history [req: One active plan agent per change; Agent output validation; Read-only plan agents]
 - [ ] 5.2 Catalog: list refresh, change description with readiness, fingerprint polling, stale marking, change creation [req: List changes by group; Create a change; Fingerprint tracking; Readiness follows the fingerprint; Stage derivation]
 - [ ] 5.3 Draft next in CLI order and comment iteration as diff proposals [req: Draft artifacts in CLI order; Diff proposals; Nothing written without approval]
 - [ ] 5.4 Apply protocol: accept with stale check, validate, revision commit, revert on invalid, reject, ask another version [req: Validate and commit accepted proposals; Revert on invalid change; Nothing written without approval; Stale proposals are never applied; Write scope]

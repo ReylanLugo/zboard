@@ -18,6 +18,8 @@ import { append, isolate, readBoard } from './runtime/log-store.ts'
 import { mirrorCreated, mirrorUpdated } from './runtime/native.ts'
 import { installNotify } from './runtime/notify.ts'
 import { installOrchestrator } from './runtime/orchestrator.ts'
+import { planStop, planTokens } from './runtime/plan-runner.ts'
+import { isolatePlan } from './runtime/plan-store.ts'
 import { closeDetail, renderDetail } from './ui/Detail.tsx'
 import { focusCard, renderPane } from './ui/Pane.tsx'
 import { applyStoredPrefs } from './ui/prefs.ts'
@@ -224,6 +226,7 @@ export const register: Register = (on, options) => {
     const io = ioOf($)
     const stop = { agentId: e.agent_id, transcriptPath: e.agent_transcript_path, answer: e.last_assistant_message, effort: e.effort?.level }
     await isolate(io, 'classic.SubagentStop', () => captureStop(io, stop), undefined)
+    await isolatePlan(io, 'plan.SubagentStop', () => planStop(io, ctx, stop), undefined)
     return result
   })
   // The one unmatched tool.call hook: activity capture, then comment delivery (runtime/inject.ts),
@@ -242,6 +245,7 @@ export const register: Register = (on, options) => {
   on('turn.complete', async ($, e, next) => {
     const io = ioOf($)
     await isolate(io, 'capture.turn.complete', () => captureTokens(io, e.agentId, e.usage), undefined)
+    await isolatePlan(io, 'plan.turn.complete', () => planTokens(io, e.agentId, e.usage), undefined)
     return next(e)
   })
 
