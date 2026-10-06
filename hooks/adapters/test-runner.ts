@@ -140,17 +140,22 @@ async function attemptCustom(io: Io, runner: CustomRunner, file: string, cwd: st
 const attempt = (io: Io, runner: TestRunner, file: string, cwd: string): Promise<Attempt> =>
   runner.kind === 'ptest' ? attemptPtest(io, file, cwd) : attemptCustom(io, runner, file, cwd)
 
+/** Results of a configured command carry its display; ptest results stay as they were. */
+const labelled = (runner: TestRunner, run: FileRun): FileRun =>
+  (runner.kind === 'ptest' ? run : { ...run, runner: commandDisplay(runner) })
+
 /** Runs one file, retrying once when the run could not finish; an unsafe file never runs. */
 export async function runFile(io: Io, file: string, cwd: string, runner: TestRunner = PTEST_RUNNER): Promise<FileRun> {
   if (!isRunnableFile(file)) {
-    return { kind: 'unknown', endLine: `refused test file ${JSON.stringify(file)}: not a plain repository-relative path`, failures: [], executed: 0 }
+    return labelled(runner, { kind: 'unknown', endLine: `refused test file ${JSON.stringify(file)}: not a plain repository-relative path`, failures: [], executed: 0 })
   }
   const first = await attempt(io, runner, file, cwd)
   const final = first.kind === 'retryable' ? await attempt(io, runner, file, cwd) : first
-  return final.kind === 'retryable' ? { kind: 'incomplete', endLine: final.endLine, failures: [], executed: 0 } : { ...final, kind: final.kind }
+  return labelled(runner, final.kind === 'retryable' ? { kind: 'incomplete', endLine: final.endLine, failures: [], executed: 0 } : { ...final, kind: final.kind })
 }
 
-const resultOf = (run: TestRun): TestRun => ({ kind: run.kind, endLine: run.endLine, failures: run.failures })
+const resultOf = (run: TestRun): TestRun =>
+  ({ kind: run.kind, endLine: run.endLine, failures: run.failures, ...(run.runner === undefined ? {} : { runner: run.runner }) })
 
 export async function runScoped(io: Io, files: readonly string[], cwd: string, runner: TestRunner = PTEST_RUNNER): Promise<TestRun> {
   if (files.length === 0) return { kind: 'unknown', endLine: 'no test files to run', failures: [] }
@@ -160,9 +165,10 @@ export async function runScoped(io: Io, files: readonly string[], cwd: string, r
     if (run.kind === 'incomplete' || run.kind === 'unknown') return run
     runs.push(run)
   }
+  const label = runner.kind === 'ptest' ? {} : { runner: commandDisplay(runner) }
   const failed = runs.filter(run => run.kind === 'fail')
   if (failed.length > 0) {
-    return { kind: 'fail', endLine: failed[0]?.endLine ?? '', failures: unique(failed.flatMap(run => run.failures)) }
+    return { kind: 'fail', endLine: failed[0]?.endLine ?? '', failures: unique(failed.flatMap(run => run.failures)), ...label }
   }
-  return { kind: 'pass', endLine: runs.at(-1)?.endLine ?? '', failures: [] }
+  return { kind: 'pass', endLine: runs.at(-1)?.endLine ?? '', failures: [], ...label }
 }

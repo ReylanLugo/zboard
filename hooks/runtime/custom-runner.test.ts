@@ -44,6 +44,24 @@ test('tdd and code gates run the configured test command instead of ptest', { ti
   expect(testRuns).toEqual([[...PYTEST, 'tests/test_a.py'], [...PYTEST, 'tests/test_a.py']])
 })
 
+test('a custom runner that never finishes needs a decision naming the command', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+  const w = installWorld(on)
+  const dirty = setupDemo(w)
+  w.files.set(CONFIG_PATH, PYTEST_CONFIG)
+  scriptRunner(w, PYTEST, [PYTEST_RED, { reject: 'timed out' }, { reject: 'timed out' }])
+  await boot($)
+  await zboard($, 'run demo')
+  await stopAgent($, lastAgent(w), ANSWERS.research)
+  await stopAgent($, lastAgent(w), PLAN)
+  dirty.set('tests/test_a.py', 't1')
+  await stopAgent($, lastAgent(w), TDD)
+  dirty.set('src/a.py', 's1')
+  await stopAgent($, lastAgent(w), ANSWERS.code)
+  expect(await taskOf($, '1.1')).toMatchObject({
+    status: 'needs_decision', statusReason: 'code gate failed: `uv run pytest <file>` incomplete twice: uv did not finish: zboard: $.process.run: timed out',
+  })
+})
+
 test('an invalid testCommand keeps ptest and shows a config warning', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)

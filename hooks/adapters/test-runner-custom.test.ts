@@ -32,7 +32,7 @@ test('a custom runner runs its argv with its timeout and exit 0 is a pass', { ti
   const w = installWorld(on)
   w.rules.push({ match: argvIs('uv', 'run', 'pytest'), answer: PYTEST_PASS })
   const run = await runFile(worldIo(w), 'tests/a.py', '/repo', PYTEST)
-  expect(run).toEqual({ kind: 'pass', endLine: '============ 3 passed in 0.12s ============', failures: [], executed: 3 })
+  expect(run).toEqual({ kind: 'pass', endLine: '============ 3 passed in 0.12s ============', failures: [], executed: 3, runner: 'uv run pytest <file> -q' })
   expect(w.runs).toEqual([['uv', 'run', 'pytest', 'tests/a.py', '-q']])
   expect(w.runOptions).toEqual([{ cwd: '/repo', timeoutMs: 120_000 }])
 })
@@ -51,7 +51,7 @@ test('a custom runner that times out twice is incomplete', { timeoutMs: PLUGIN_T
   const w = installWorld(on)
   w.rules.push({ match: argvIs('uv'), answer: { reject: 'command still running after 120000 ms' } })
   expect(await runScoped(worldIo(w), ['tests/a.py'], '/repo', PYTEST)).toEqual({
-    kind: 'incomplete', endLine: 'uv did not finish: command still running after 120000 ms', failures: [],
+    kind: 'incomplete', endLine: 'uv did not finish: command still running after 120000 ms', failures: [], runner: 'uv run pytest <file> -q',
   })
   expect(w.runs).toHaveLength(2)
 })
@@ -80,7 +80,7 @@ test('an exit 0 with unrecognised output passes but reports no executed tests', 
   const w = installWorld(on)
   w.rules.push({ match: argvIs('make'), answer: { exitCode: 0, stdout: 'all good\n' } })
   const run = await runFile(worldIo(w), 'tests/a.sh', '/repo', { kind: 'custom', argv: ['make', 'test', 'FILE={file}'], timeoutMs: 1_000 })
-  expect(run).toEqual({ kind: 'pass', endLine: 'all good', failures: [], executed: 0 })
+  expect(run).toEqual({ kind: 'pass', endLine: 'all good', failures: [], executed: 0, runner: 'make test FILE=<file>' })
   expect(w.runs).toEqual([['make', 'test', 'FILE=tests/a.sh']])
 })
 
@@ -104,4 +104,12 @@ test('testsExecuted reads the passed count of known runners from their output', 
   expect(testsExecuted('test result: FAILED. 3 passed; 1 failed\n')).toBe(0)
   expect(testsExecuted('all good\n')).toBe(0)
   expect(testsExecuted('')).toBe(0)
+})
+
+test('a custom failure carries the command display through runScoped', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+  const w = installWorld(on)
+  w.rules.push({ match: argvIs('uv'), answer: { exitCode: 1, stdout: 'FAILED tests/a.py::test_new - E\n' } })
+  expect(await runScoped(worldIo(w), ['tests/a.py'], '/repo', PYTEST)).toEqual({
+    kind: 'fail', endLine: 'FAILED tests/a.py::test_new - E', failures: ['tests/a.py::test_new'], runner: 'uv run pytest <file> -q',
+  })
 })

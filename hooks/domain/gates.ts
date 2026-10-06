@@ -78,11 +78,16 @@ export interface TestRun {
   readonly kind: 'pass' | 'fail' | 'incomplete' | 'unknown'
   readonly endLine: string
   readonly failures: readonly string[]
+  /** The configured test command as displayed (e.g. `uv run pytest <file>`); absent for ptest. */
+  readonly runner?: string
 }
 
+/** How gate messages name the runner: `ptest`, or the configured command in backticks. */
+const runnerLabel = (run: TestRun): string => (run.runner === undefined ? 'ptest' : `\`${run.runner}\``)
+
 function unusable(run: TestRun): GateOutcome | undefined {
-  if (run.kind === 'incomplete') return fail(`ptest incomplete twice: ${run.endLine}`, true)
-  if (run.kind === 'unknown') return fail(`ptest result unknown: ${run.endLine}`)
+  if (run.kind === 'incomplete') return fail(`${runnerLabel(run)} incomplete twice: ${run.endLine}`, true)
+  if (run.kind === 'unknown') return fail(`${runnerLabel(run)} result unknown: ${run.endLine}`)
   return undefined
 }
 
@@ -107,7 +112,7 @@ export function tddGate(run: TestRun, answer: string): GateOutcome {
   if (newTests.length === 0) return fail('tdd: artifact lists no newTests')
   const short = newTests.find(name => name.trim().length < MIN_TEST_NAME)
   if (short !== undefined) return fail(`tdd: newTests has an empty or too short name: ${JSON.stringify(short)}`)
-  if (run.failures.length === 0) return fail('tdd: ptest failed but no failing test could be identified')
+  if (run.failures.length === 0) return fail(`tdd: ${runnerLabel(run)} failed but no failing test could be identified`)
   const foreign = run.failures.filter(failure => !newTests.some(name => namesTest(failure, name.trim())))
   if (foreign.length > 0) return fail(`tdd: pre-existing tests fail: ${foreign.join(', ')}`)
   return { gate: 'pass', summary: `RED: ${run.failures.length} new failing test(s)`, newTests }
