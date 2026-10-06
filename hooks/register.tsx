@@ -19,6 +19,8 @@ import { mirrorCreated, mirrorUpdated } from './runtime/native.ts'
 import { installNotify } from './runtime/notify.ts'
 import { installOrchestrator } from './runtime/orchestrator.ts'
 import { installPlanJobs } from './runtime/plan-jobs.ts'
+import { flushPlanMirror, installPlanMirror } from './runtime/plan-mirror.ts'
+import { recoverPlan } from './runtime/plan-recovery.ts'
 import { planStop, planTokens } from './runtime/plan-runner.ts'
 import { isolatePlan } from './runtime/plan-store.ts'
 import { closeDetail, renderDetail } from './ui/Detail.tsx'
@@ -130,6 +132,7 @@ export const register: Register = (on, options) => {
   installAgentOffer(on)
   installOrchestrator(ctx)
   installPlanJobs()
+  installPlanMirror()
   installMirrorWiring()
   installNotify()
 
@@ -146,6 +149,7 @@ export const register: Register = (on, options) => {
     const started = await next(e)
     startPolling(io, ctx)
     await isolate(io, 'recovery.session.start', () => recover(io, ctx, true), undefined)
+    await isolatePlan(io, 'plan.recovery', () => recoverPlan(io), undefined)
     return started
   })
 
@@ -166,11 +170,13 @@ export const register: Register = (on, options) => {
     const result = await next(e)
     const io = ioOf($)
     await isolate(io, 'classic.PostCompact', () => recover(io, ctx, false), undefined)
+    await isolatePlan(io, 'plan.PostCompact', () => recoverPlan(io), undefined)
     return result
   })
   on('classic.PreCompact', async ($, e, next) => {
     const io = ioOf($)
     await isolate(io, 'classic.PreCompact', () => flushMirror(io), undefined)
+    await isolatePlan(io, 'plan.PreCompact', () => flushPlanMirror(io), undefined)
     return next(e)
   })
 
