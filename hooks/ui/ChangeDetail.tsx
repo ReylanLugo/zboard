@@ -11,11 +11,13 @@ import { clipMarkdown } from '../runtime/plan-docs.ts'
 import { explainChange, isExplanationCurrent } from '../runtime/plan-explain.ts'
 import { runChange } from '../runtime/plan-run.ts'
 import type { ChangesTab, ChangesUi } from '../runtime/ui-types.ts'
+import { CHANGES_TABS } from '../runtime/ui-types.ts'
 import { act, composeComment, selectArtifact, setTab } from './changes-actions.ts'
 import { defaultArtifact, historyRows, readinessLine, stepperMarks, stepperText, uncoveredRequirements } from './changes-model.ts'
 import { DiagramsTab } from './DiagramsTab.tsx'
 import { DiffView } from './DiffView.tsx'
 import { QaView, showsQa } from './QaView.tsx'
+import { CritiqueList, ForecastView, RetryView, VerifyTab } from './VerifyTab.tsx'
 import type { Els } from './els.ts'
 
 export interface DetailProps {
@@ -26,7 +28,7 @@ export interface DetailProps {
   readonly columns: number
 }
 
-export const TABS: readonly ChangesTab[] = ['summary', 'diagrams', 'specs', 'tasks', 'history']
+export const TABS: readonly ChangesTab[] = CHANGES_TABS
 
 const TAB_TITLES: Readonly<Record<ChangesTab, string>> = {
   summary: 'Summary', diagrams: 'Diagrams', specs: 'Specs', tasks: 'Tasks', verify: 'Verify', history: 'History',
@@ -92,7 +94,7 @@ const Docs = (els: Els, files: readonly DocFile[]): RenderElement[] => {
   return files.map(file => <Markdown key={`doc:${file.path}`} text={clipMarkdown(file.text)} />)
 }
 
-function SummaryTab(els: Els, props: DetailProps): RenderElement {
+function SummaryTab(els: Els, io: Io, ctx: Ctx, props: DetailProps): RenderElement {
   const { Box, Markdown, Text } = els
   const explanation = props.rec.explanation
   return (
@@ -103,6 +105,7 @@ function SummaryTab(els: Els, props: DetailProps): RenderElement {
           <Markdown key="explanation-text" text={clipMarkdown([explanation.value.overview, ...explanation.value.sections.map(section => `### ${section.title}\n\n${section.body}`)].join('\n\n'))} />
         </Box>
       )}
+      {CritiqueList(els, io, ctx, props.rec)}
       {props.docs.summary.length === 0 ? <Box key="summary-empty"><Text dimColor>No artifact written yet.</Text></Box> : Docs(els, props.docs.summary)}
     </Box>
   )
@@ -137,7 +140,7 @@ function HistoryTab(els: Els, rec: ChangeRecord): RenderElement {
   )
 }
 
-function TabBody(els: Els, _io: Io, _ctx: Ctx, props: DetailProps): RenderElement {
+function TabBody(els: Els, io: Io, ctx: Ctx, props: DetailProps): RenderElement {
   switch (props.ui.tab) {
     case 'diagrams':
       return DiagramsTab(els, props)
@@ -147,14 +150,18 @@ function TabBody(els: Els, _io: Io, _ctx: Ctx, props: DetailProps): RenderElemen
       return TasksTab(els, props.docs)
     case 'history':
       return HistoryTab(els, props.rec)
+    case 'verify':
+      return VerifyTab(els, io, ctx, props.rec)
     default:
-      return SummaryTab(els, props)
+      return SummaryTab(els, io, ctx, props)
   }
 }
 
 function Overlays(els: Els, io: Io, ctx: Ctx, props: DetailProps): RenderElement[] {
-  const { rec } = props
+  const { rec, ui } = props
   return [
+    ...RetryView(els, io, ctx, rec),
+    ...(ui.forecast !== null && ui.forecast.changeId === rec.id ? [ForecastView(els, io, ctx, ui.forecast)] : []),
     ...(rec.proposal === undefined ? [] : [DiffView(els, io, ctx, rec, rec.proposal)]),
     ...(showsQa(rec) ? [QaView(els, io, ctx, rec)] : []),
   ]
