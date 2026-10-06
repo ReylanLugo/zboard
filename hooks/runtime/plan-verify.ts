@@ -2,7 +2,7 @@ import type { Io } from './io.ts'
 
 import { changeFiles, listFiles } from '../adapters/artifacts.ts'
 import { judgePrompt } from '../adapters/prompts-plan.ts'
-import { runFile, testsExecuted } from '../adapters/ptest.ts'
+import { runFile, testsExecuted } from '../adapters/test-runner.ts'
 import type { JudgeRaw } from '../plan/contracts.ts'
 import { parseJudge } from '../plan/contracts.ts'
 import type { TestEvidence } from '../plan/findings.ts'

@@ -4,7 +4,7 @@ import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
 
 import type { Io } from '../runtime/io.ts'
 import { argvIs, installWorld, worldIo } from '../testing/world.ts'
-import { endLineOf, parseFailures, runFile, runScoped, testsExecuted } from './ptest.ts'
+import { endLineOf, parseFailures, runFile, runScoped, testsExecuted } from './test-runner.ts'
 
 const scoped = (files: string[]) => (($: Io) => runScoped($, files, '/repo'))
 
