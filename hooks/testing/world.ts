@@ -4,7 +4,7 @@ import type { MockClock } from 'claude-code/testing'
 
 import { EMPTY_LOG } from '../domain/log.ts'
 import { EMPTY_PLAN_LOG } from '../plan/plan-log.ts'
-import type { Handback, Io, StatePort } from '../runtime/io.ts'
+import type { Io, StatePort } from '../runtime/io.ts'
 import { DEFAULT_UI } from '../runtime/ui-types.ts'
 import { HANDBACK_TOOL } from '../runtime/handback.ts'
 import { NATIVE_STATE } from './harness-facts.ts'
@@ -301,7 +301,6 @@ export function worldIo(w: World): Io {
       ui: memoryPort(w, 'ui', DEFAULT_UI),
       artifacts: memoryPort<Readonly<Record<string, string>>>(w, 'artifacts', {}),
       plan: memoryPort(w, 'plan', EMPTY_PLAN_LOG),
-      handbacks: memoryPort<readonly Handback[]>(w, 'handbacks', []),
     },
     store: {
       get: async key => w.store.get(key),

@@ -127,6 +127,16 @@ async function completeTurn($: Engine, w: World, agentId: string, answer: string
   await w.clock.advance(0)
 }
 
+/**
+ * An agent whose SubagentStop does reach zboard (the only event carrying its
+ * transcript path), its report in its messages.
+ */
+export async function stopAgentBySubagentStop($: Engine, w: World, agentId: string, answer: string): Promise<void> {
+  w.transcripts.set(agentId, [...(w.transcripts.get(agentId) ?? []), handbackRow(answer)])
+  await $.classic.SubagentStop({ stop_hook_active: false, agent_id: agentId, agent_transcript_path: `/t/${agentId}.jsonl`, agent_type: 'zboard' })
+  await w.clock.advance(0)
+}
+
 /** A hand-back as the main session receives it: a peer turn naming the agent. */
 export const agentMessage = (agentId: string, report: string): string => `<agent-message from="${agentId}">\n${report}\n</agent-message>`
 

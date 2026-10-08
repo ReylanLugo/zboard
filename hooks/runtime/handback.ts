@@ -2,29 +2,18 @@ import type { SessionMessage } from 'claude-code'
 
 import { runOf, taskOfAgent } from '../domain/project.ts'
 import { changeOfAgent } from '../plan/plan-project.ts'
-import type { Handback, Io } from './io.ts'
+import type { Io } from './io.ts'
 import { message, readBoard } from './log-store.ts'
 import { readPlan } from './plan-store.ts'
 
 // A background subagent reports through the engine's SubagentHandback tool and
-// then stops with no text, so its SubagentStop carries no answer. zboard keeps
-// the report of each of its own agents here (host state, so a reload mid-run
-// keeps it) until that agent's stop takes it.
+// then ends with no text. The engine runs a zboard-spawned agent's tool calls
+// without zboard's hooks (re-entry: zboard's own spawn lent them), so zboard
+// never sees that call; it reads the report from the agent's messages when the
+// agent's run completes.
 
 /** The engine tool a background subagent ends its run with: `{ message }`. */
 export const HANDBACK_TOOL = 'SubagentHandback'
-
-/** At most this many reports wait for their agent's stop; the oldest go first. */
-export const HANDBACK_CAP = 16
-
-export const handbackNote = (role: string, agentId: string): string =>
-  `zboard captured this report (${role}, agent ${agentId}); it is shown in the zboard pane.`
-
-export const withoutHandback = (list: readonly Handback[], agentId: string): readonly Handback[] =>
-  list.filter(entry => entry.agentId !== agentId)
-
-export const withHandback = (list: readonly Handback[], entry: Handback): readonly Handback[] =>
-  [...withoutHandback(list, entry.agentId), entry].slice(-HANDBACK_CAP)
 
 /** The role of a running zboard agent (a board task's open run or a change's active plan agent). */
 export async function roleOfAgent(io: Io, agentId: string): Promise<string | undefined> {
@@ -34,24 +23,7 @@ export async function roleOfAgent(io: Io, agentId: string): Promise<string | und
   return changeOfAgent(await readPlan(io), agentId)?.activeAgent?.role
 }
 
-/** Keeps a zboard agent's report; resolves the note the main session gets instead, or undefined for other agents. */
-export async function captureHandback(io: Io, agentId: string, message: unknown): Promise<string | undefined> {
-  if (typeof message !== 'string') return undefined
-  const role = await roleOfAgent(io, agentId)
-  if (role === undefined) return undefined
-  await io.state.handbacks.update(current => withHandback(current, { agentId, message }))
-  return handbackNote(role, agentId)
-}
-
-/** Removes and returns the report kept for an agent. */
-export async function takeHandback(io: Io, agentId: string): Promise<string | undefined> {
-  const found = (await io.state.handbacks.read()).find(entry => entry.agentId === agentId)
-  if (found === undefined) return undefined
-  await io.state.handbacks.update(current => withoutHandback(current, agentId))
-  return found.message
-}
-
-const nonBlank = (text: string | undefined): string | undefined =>
+export const nonBlank = (text: string | undefined): string | undefined =>
   text === undefined || text.trim() === '' ? undefined : text
 
 const handbackIn = (row: SessionMessage): string | undefined => {
@@ -59,25 +31,26 @@ const handbackIn = (row: SessionMessage): string | undefined => {
   return use === undefined ? undefined : String(use.input.message)
 }
 
+/** The last report in an agent's messages; none when no row holds a SubagentHandback call. */
+export const handbackFrom = (rows: readonly SessionMessage[]): string | undefined =>
+  [...rows].reverse().map(handbackIn).find(found => found !== undefined)
+
 /**
- * The last report a zboard agent handed back, read from its conversation: the
- * engine may run a zboard-spawned agent's tool calls without zboard's hooks, so
- * the kept copy can be missing. Unreadable messages read as no report.
+ * The last report a running zboard agent handed back, read from its conversation.
+ * Unreadable messages read as no report.
  */
 export async function reportFromMessages(io: Io, agentId: string): Promise<string | undefined> {
   if ((await roleOfAgent(io, agentId)) === undefined) return undefined
   try {
     const rows = await io.session.messages({ agentId })
-    if (!Array.isArray(rows)) return undefined
-    return [...rows].reverse().map(handbackIn).find(found => found !== undefined)
+    return Array.isArray(rows) ? handbackFrom(rows) : undefined
   } catch (error) {
     io.ui.debug(`zboard: the messages of ${agentId} were unreadable: ${message(error)}`)
     return undefined
   }
 }
 
-/** An agent's answer at its stop: its final text, else the report it handed back (the kept copy is taken either way). */
+/** An agent's answer at its completion: its final text, else the report it handed back. */
 export async function stopAnswer(io: Io, agentId: string, text: string | undefined): Promise<string | undefined> {
-  const kept = await takeHandback(io, agentId)
-  return nonBlank(text) ?? kept ?? (await reportFromMessages(io, agentId))
+  return nonBlank(text) ?? (await reportFromMessages(io, agentId))
 }

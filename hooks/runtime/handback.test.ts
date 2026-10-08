@@ -6,23 +6,35 @@ import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
 import { scriptOpenspec } from '../testing/openspec.ts'
 import { mountPane } from '../testing/ui.ts'
 import type { World } from '../testing/world.ts'
-import { handbackRow, installWorld, worldIo } from '../testing/world.ts'
+import { handbackRow, installWorld } from '../testing/world.ts'
 import { ANSWERS, boot, deliverPeer, json, lastAgent, scriptGit, setupDemo, stopAgent, stopAgentWithText, zboard } from '../testing/zboard.ts'
-import { HANDBACK_CAP, stopAnswer, withHandback, withoutHandback } from './handback.ts'
+import { CLAIM_CAP, claimLedger, withClaim } from './complete.ts'
+import { handbackFrom, nonBlank } from './handback.ts'
+
+const subagentStop = ($: Engine, agentId: string) =>
+  $.classic.SubagentStop({ stop_hook_active: false, agent_id: agentId, agent_transcript_path: `/t/${agentId}.jsonl`, agent_type: 'zboard' })
 
 /** The agent's run holds its SubagentHandback call; zboard never sees the call itself (re-entry). */
 const handBack = (w: World, agentId: string, message: string): void => {
   w.transcripts.set(agentId, [...(w.transcripts.get(agentId) ?? []), handbackRow(message)])
 }
 
-test('the stored hand-backs keep the newest entries up to the cap and drop an agent\'s once taken', () => {
-  const many = Array.from({ length: HANDBACK_CAP + 3 }, (_, index) => ({ agentId: `a${index}`, message: `m${index}` }))
-  const kept = many.reduce(withHandback, [] as readonly { agentId: string; message: string }[])
-  expect(kept).toHaveLength(HANDBACK_CAP)
-  expect(kept[0]?.agentId).toBe('a3')
-  const replaced = withHandback(kept, { agentId: 'a5', message: 'again' })
-  expect(replaced.filter(entry => entry.agentId === 'a5')).toEqual([{ agentId: 'a5', message: 'again' }])
-  expect(withoutHandback(replaced, 'a5').some(entry => entry.agentId === 'a5')).toBe(false)
+test('the last SubagentHandback report in an agent\'s messages is its answer; none without one', () => {
+  expect(handbackFrom([handbackRow('first'), { role: 'assistant', text: 'thinking' } as never, handbackRow('second')])).toBe('second')
+  expect(handbackFrom([{ role: 'assistant', text: 'no report' } as never])).toBeUndefined()
+  expect(handbackFrom([])).toBeUndefined()
+  expect(nonBlank('  ')).toBeUndefined()
+  expect(nonBlank('text')).toBe('text')
+})
+
+test('an agent\'s completion is claimed once; the ledger keeps the newest claims up to its cap', () => {
+  const claim = claimLedger()
+  expect(claim('a1')).toBe(true)
+  expect(claim('a1')).toBe(false)
+  expect(claim('a2')).toBe(true)
+  const many = Array.from({ length: CLAIM_CAP + 2 }, (_, index) => `x${index}`).reduce(withClaim, [] as readonly string[])
+  expect(many).toHaveLength(CLAIM_CAP)
+  expect(many[0]).toBe('x2')
 })
 
 test('a pipeline agent\'s hand-back never floods the main session: zboard drops it with a pointer to the pane', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
@@ -61,13 +73,26 @@ test('a hand-back from an agent zboard does not run reaches the main session unt
   expect(w.prompts).toEqual(['<agent-message from="stranger">\nmy own report\n</agent-message>'])
 })
 
-test('a stop takes the kept report once; final text wins but still drops it', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async (_$, on) => {
-  const io = worldIo(installWorld(on))
-  await io.state.handbacks.update(() => [{ agentId: 'a1', message: 'report one' }, { agentId: 'a2', message: 'report two' }])
-  expect(await stopAnswer(io, 'a1', undefined)).toBe('report one')
-  expect(await stopAnswer(io, 'a1', '  ')).toBeUndefined()
-  expect(await stopAnswer(io, 'a2', 'final text')).toBe('final text')
-  expect(await io.state.handbacks.read()).toEqual([])
+test('a turn.complete completes the agent; its later SubagentStop is a no-op', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+  const w = installWorld(on)
+  setupDemo(w)
+  await boot($)
+  await zboard($, 'run demo')
+  const agentId = lastAgent(w)
+  await stopAgent($, w, agentId, ANSWERS.research)
+  await subagentStop($, agentId)
+  await w.clock.advance(0)
+  expect(w.spawns.map(spawn => spawn.subagentType)).toEqual(['zboard:researcher', 'zboard:planner'])
+})
+
+test('the main loop\'s turn.complete and a stranger agent\'s complete nothing', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+  const w = installWorld(on)
+  setupDemo(w)
+  await boot($)
+  await zboard($, 'run demo')
+  await $.turn.complete({ answer: ANSWERS.research, durationMs: 1, isAborted: false, turnId: 'main', reason: 'answer' })
+  await stopAgentWithText($, w, 'stranger', ANSWERS.research)
+  expect(w.spawns.map(spawn => spawn.subagentType)).toEqual(['zboard:researcher'])
 })
 
 test('a pipeline phase completes from the report its agent handed back', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
@@ -99,9 +124,6 @@ test('a hand-back zboard never saw as a tool call is read from the agent\'s tran
   await w.clock.advance(0)
   expect(w.spawns.map(spawn => spawn.subagentType)).toEqual(['zboard:researcher', 'zboard:planner'])
 })
-
-const subagentStop = ($: Engine, agentId: string) =>
-  $.classic.SubagentStop({ stop_hook_active: false, agent_id: agentId, agent_transcript_path: `/t/${agentId}.jsonl`, agent_type: 'zboard' })
 
 test('the next pipeline phase spawns after the stopped agent\'s SubagentStop, never inside it', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)

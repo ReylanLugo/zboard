@@ -10,12 +10,6 @@ export interface StatePort<T> {
   readonly update: (fn: (current: T) => T) => Promise<T>
 }
 
-/** A zboard agent's SubagentHandback report, kept until that agent's stop takes it. */
-export interface Handback {
-  readonly agentId: string
-  readonly message: string
-}
-
 /**
  * Ports the engine lends to adapters and handlers.
  *
@@ -56,7 +50,6 @@ export interface Io {
     readonly ui: StatePort<UiState>
     readonly artifacts: StatePort<Readonly<Record<string, string>>>
     readonly plan: StatePort<PlanLog>
-    readonly handbacks: StatePort<readonly Handback[]>
   }
   readonly store: {
     readonly get: (key: string) => Promise<unknown>

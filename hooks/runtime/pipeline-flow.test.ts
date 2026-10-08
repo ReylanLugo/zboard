@@ -3,7 +3,7 @@ import { expect, test } from 'claude-code/testing'
 import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
 
 import {
-  ANSWERS, GREEN, RED, TWO_TASKS, agentOf, boot, callTool, lastAgent, scriptPtest, setupDemo, status, stopAgent, taskOf, zboard,
+  ANSWERS, GREEN, RED, TWO_TASKS, agentOf, boot, callTool, lastAgent, scriptPtest, setupDemo, status, stopAgent, stopAgentBySubagentStop, taskOf, zboard,
 } from '../testing/zboard.ts'
 import { argvIs, installWorld, worldIo } from '../testing/world.ts'
 
@@ -51,7 +51,7 @@ test('pause lets in-flight phases finish and spawns nothing new until resumed', 
   expect(w.spawns.slice(2).map(spawn => spawn.subagentType)).toEqual(['zboard:planner', 'zboard:planner'])
 })
 
-test('a second SubagentStop for the same agent is ignored', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+test('a second completion for the same agent is ignored', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   await boot($)
@@ -81,13 +81,26 @@ test('artifacts are stored, truncated past 50,000 characters, and readable with 
   await boot($)
   await zboard($, 'run demo')
   const huge = `${'x'.repeat(80_000)}\n${ANSWERS.research}`
-  await stopAgent($, w, 'agent-1', huge)
+  await stopAgentBySubagentStop($, w, 'agent-1', huge)
   const read = await callTool($, 'board_artifact', { taskId: '1.1', phase: 'research' })
   expect(read.ok).toBe(true)
   const text = (read as { value: { text: string } }).value.text
   expect(text.length).toBeLessThanOrEqual(50_000)
   expect(text).toMatch(/\[zboard: truncated \d+ of \d+ characters\] transcript: \/t\/agent-1\.jsonl$/)
   expect(await agentOf($, 'agent-1')).toMatchObject({ transcriptPath: '/t/agent-1.jsonl', outcome: 'ok' })
+})
+
+test('an artifact truncated after a turn.complete completion names its transcript as unavailable', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+  const w = installWorld(on)
+  setupDemo(w)
+  await boot($)
+  await zboard($, 'run demo')
+  await stopAgent($, w, 'agent-1', `${'x'.repeat(80_000)}\n${ANSWERS.research}`)
+  const read = await callTool($, 'board_artifact', { taskId: '1.1', phase: 'research' })
+  const text = (read as { value: { text: string } }).value.text
+  expect(text.length).toBeLessThanOrEqual(50_000)
+  expect(text).toMatch(/\[zboard: truncated \d+ of \d+ characters\] transcript: unavailable$/)
+  expect(await agentOf($, 'agent-1')).toMatchObject({ transcriptPath: null, outcome: 'ok' })
 })
 
 test('a phase evaluation that throws needs a decision and frees its slot for the next task', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
