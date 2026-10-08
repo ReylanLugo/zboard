@@ -27,6 +27,7 @@ import { recoverPlan } from './runtime/plan-recovery.ts'
 import { planTokens } from './runtime/plan-runner.ts'
 import { isolatePlan, onPlanAppend } from './runtime/plan-store.ts'
 import { caughtWrite } from './runtime/reentry-guard.ts'
+import { deliverNote, reentryNote } from './runtime/reentry-notes.ts'
 import { closeChanges, focusChange, renderChanges } from './ui/ChangesPane.tsx'
 import { closeDetail, renderDetail } from './ui/Detail.tsx'
 import { focusCard, renderPane } from './ui/Pane.tsx'
@@ -262,7 +263,8 @@ export const register: Register = (on, options) => {
     return result
   })
   // The one unmatched tool.call hook: activity capture, then comment delivery (runtime/inject.ts),
-  // which appends pending comments to the agent's next tool result as `context`.
+  // which appends pending comments to the agent's next tool result as `context`. A zboard-spawned
+  // agent's calls skip it (re-entry); its `.catch` delivers from the agent cache (runtime/reentry-notes.ts).
   on('tool.call', async ($, e, next) => {
     const agentId = e.agentId
     if (agentId === undefined) return next(e)
@@ -273,6 +275,9 @@ export const register: Register = (on, options) => {
     if (found === undefined || ran.deny !== undefined) return ran
     await isolate(io, 'inject.deliver', () => append(io, found.events), undefined)
     return { ...ran, context: [...(ran.context ?? []), found.note] }
+  }).catch(async ($, e, next) => {
+    const found = reentryNote(agents.get(), e.agentId, next)
+    return deliverNote(agents, found, await next(e))
   })
   // A subagent's run is one turn: its turn.complete carries its agentId and, for a hand-back,
   // an empty answer (the report is read from its messages). It completes a zboard agent.
