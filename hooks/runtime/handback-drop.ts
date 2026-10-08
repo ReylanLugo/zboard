@@ -6,8 +6,8 @@ import type { CaughtNext } from './reentry-guard.ts'
 // turn, `<agent-message from="<agentId>">…`. zboard already took the report at
 // the agent's turn.complete and shows it in its pane, so the peer turn is
 // dropped instead of flooding the main conversation. The decision reads the
-// agent cache alone: the prompt hook may itself be skipped by re-entry, and its
-// `.catch` handler cannot call `$`.
+// agent cache alone, so the hook's `.catch` handler (defense in depth, where `$`
+// rejects) can make the same one.
 
 const AGENT_MESSAGE = /^\s*<agent-message from="([^"]+)"/
 

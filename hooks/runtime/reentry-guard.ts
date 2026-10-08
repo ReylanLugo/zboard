@@ -5,11 +5,13 @@ import type { AgentCache, AgentCell } from './agent-cache.ts'
 import { withPending } from './agent-cache.ts'
 import { guardDecision } from './guard.ts'
 
-// The allowed-file guard where the engine did not run its hook. A zboard-spawned
-// agent's tool calls rise beneath zboard's own spawn, so the engine skips the
-// guard hook (re-entry) and asks its `.catch` handler instead, where `$` rejects.
-// The handler decides from the agent cache alone and fails closed. Paths are
-// placed lexically (no symlink resolution is possible without `$`).
+// The allowed-file guard's `.catch` handler: defense in depth, not the protection.
+// zboard spawns its agents only inside a hook frame (runtime/frame.ts), so the
+// engine runs the guard hook for their calls. Should a call still reach the
+// handler (a throw, a timeout, or re-entry, where `$` rejects), it decides from
+// the agent cache alone and fails closed. Live (2.1.294) the engine did not
+// consult it for agents spawned outside a frame, so it cannot stand in for the
+// frame rule. Paths are placed lexically (no symlink resolution without `$`).
 
 /** The tools the guard gates; every other tool passes. */
 export const GATED_TOOLS: readonly string[] = ['Edit', 'Write', 'NotebookEdit']

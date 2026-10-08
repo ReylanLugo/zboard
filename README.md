@@ -191,9 +191,23 @@ Claude Code's module checker shapes the layout:
 - `$.state` is read only through atoms declared in the calling file.
 - Hooks must be function literals inside `on(...)`, and each event takes one hook without a matcher.
 
-So `register.tsx` is the composition root. It holds the atoms, every hook, and one `ioOf($)` that builds the
+So `register.tsx` is the composition root. It holds the atoms, every hook, and one `ioOf($, frame)` that builds the
 `Io` ports (`hooks/runtime/io.ts`). Every other module receives that `Io` and stays testable without the engine.
 Tests answer the ports from an in-memory world (`hooks/testing/world.ts`).
+
+### Agents spawn only inside a hook frame
+
+Claude Code runs zboard's hooks for a subagent's events (the Edit/Write guard, comment delivery, activity,
+SubagentStop) only when zboard spawned that agent while one of its hooks was still running. A spawn from a
+`$.clock` callback or from work a settled hook left behind makes every one of those hooks re-entry, and the engine
+skips them; the hooks' `.catch` handlers were not consulted either, so they are defense in depth, not the guard.
+
+So every spawn is awaited inside a hook: `command.run` (`/zboard run`, the `/zboard changes` actions),
+`ui.press` / `ui.input` (a Button's or Input's closure only queues its work, `hooks/runtime/press-work.ts`, and the
+hook runs it), `turn.complete` / `classic.SubagentStop` (the next phase, a freed slot's task, a plan retry or next
+job) and `session.start` / `classic.PostCompact` (recovery). The tasks.md poll never spawns: it marks a tick due and
+the next hook frame runs it. Each hook lends ports whose `spawn` is refused once it settled
+(`hooks/runtime/frame.ts`), and the test world refuses a spawn made while its clock fires timers.
 
 ## License
 

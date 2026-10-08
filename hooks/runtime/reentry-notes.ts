@@ -4,10 +4,12 @@ import { withPending } from './agent-cache.ts'
 import type { CaughtNext } from './reentry-guard.ts'
 import { noteFor } from './inject.ts'
 
-// Comment delivery where the engine did not run zboard's tool.call hook: a
-// zboard-spawned agent's tool calls rise beneath zboard's own spawn (re-entry),
-// so the hook's `.catch` handler delivers instead, from the agent cache alone.
-// Its CommentDelivered events wait in the cache for ordinary context.
+// Comment delivery from the tool.call hook's `.catch` handler: defense in depth.
+// zboard's agents are spawned inside a hook frame (runtime/frame.ts), so the hook
+// itself delivers; should a call reach the handler instead (re-entry, where `$`
+// rejects), it delivers from the agent cache alone. Live, the engine did not
+// consult it for agents spawned outside a frame. Its CommentDelivered events wait
+// in the cache for ordinary context.
 
 export interface FoundNote {
   readonly note: string

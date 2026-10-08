@@ -7,9 +7,9 @@ import { append, readBoard } from './log-store.ts'
 import { readPlan } from './plan-store.ts'
 
 // What zboard knows of its own agents, held outside the host so that a hook's
-// `.catch` handler can read it where `$` is not lent. The engine skips zboard's
-// hooks for events raised beneath zboard's own agent spawn (re-entry) and asks
-// each hook's handler in its place; there every `$` call rejects. The cache is
+// `.catch` handler can read it where `$` is not lent (re-entry, where every `$`
+// call rejects). The handlers are defense in depth: zboard spawns its agents
+// inside a hook frame (runtime/frame.ts) so its hooks run for them. The cache is
 // written in ordinary hook context (every board append, plan append and session
 // start); decisions a handler makes that the board must record wait in
 // `pending` until ordinary context appends them.

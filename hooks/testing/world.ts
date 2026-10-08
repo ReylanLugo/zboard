@@ -68,6 +68,10 @@ export interface World {
   readonly prompts: string[]
   readonly clock: MockClock
   readonly timers: IoTimer[]
+  /** How many clock moves are firing timers now; a spawn meanwhile is refused (`TIMER_SPAWN`). */
+  readonly firing: { depth: number }
+  /** Every spawn the world refused because it came from a timer callback. */
+  readonly timerSpawns: string[]
   spawnDeny: string | undefined
   engram: 'up' | 'error' | 'missing'
   placePanes: boolean
@@ -99,6 +103,7 @@ const isDir = (w: World, path: string): boolean =>
 
 export function installWorld(on: On): World {
   const timers: IoTimer[] = []
+  const firing = { depth: 0 }
   const w: World = {
     files: new Map(),
     mtimes: new Map(),
@@ -120,8 +125,10 @@ export function installWorld(on: On): World {
     debug: [],
     transcripts: new Map(),
     prompts: [],
-    clock: ioClock(on, timers),
+    clock: ioClock(on, timers, firing),
     timers,
+    firing,
+    timerSpawns: [],
     spawnDeny: undefined,
     engram: 'up',
     placePanes: true,
@@ -357,8 +364,15 @@ export interface IoTimer {
   isCancelled: boolean
 }
 
-/** The kit's mock clock, whose moves also fire the timers set through `worldIo`. */
-function ioClock(on: On, timers: IoTimer[]): MockClock {
+/**
+ * The kit's mock clock, whose moves also fire the timers set through `worldIo`.
+ *
+ * While a move fires timers (the plugin's `$.clock` ones inside the kit's move, then
+ * `worldIo`'s) and lets the work they started settle, `firing.depth` is above zero:
+ * live, the engine runs no zboard hook for an agent spawned from there, so the world
+ * refuses such a spawn as the engine's re-entry would have stripped it.
+ */
+function ioClock(on: On, timers: IoTimer[], firing: { depth: number }): MockClock {
   const base = mock.clock(on, { now: NOW })
   const fire = async (): Promise<void> => {
     const due = timers.filter(timer => !timer.isCancelled && timer.due <= base.now()).sort((a, b) => a.due - b.due)
@@ -367,13 +381,25 @@ function ioClock(on: On, timers: IoTimer[]): MockClock {
     // Timer callbacks start async work without returning it; let that work settle.
     for (let turn = 0; turn < SETTLE_TURNS; turn++) await Promise.resolve()
   }
+  const move = async (moveBase: () => Promise<void>): Promise<void> => {
+    firing.depth += 1
+    try {
+      await moveBase()
+      await fire()
+    } finally {
+      firing.depth -= 1
+    }
+  }
   return {
     ...base,
-    advance: async ms => { await base.advance(ms); await fire() },
-    set: async ms => { await base.set(ms); await fire() },
-    sleep: async ms => { await base.sleep(ms); await fire() },
+    advance: ms => move(() => base.advance(ms)),
+    set: ms => move(() => base.set(ms)),
+    sleep: ms => move(() => base.sleep(ms)),
   }
 }
+
+/** The world's refusal of a spawn made from a timer callback (see `ioClock`). */
+export const TIMER_SPAWN = 'world: spawn from a timer callback, outside any hook frame (the engine would skip every zboard hook for it)'
 
 /** The kit hands the hook beneath the Agent tool's raw parameters (`subagent_type`); direct test calls use `subagentType`. */
 type SpawnArgs = { readonly prompt: string; readonly subagentType?: string; readonly subagent_type?: string; readonly model?: string }
@@ -396,6 +422,10 @@ const definitionModel = (w: World, subagentType: string): string | undefined => 
 }
 
 const agentSpawn = (w: World, e: SpawnArgs): AgentSpawnResult => {
+  if (w.firing.depth > 0) {
+    w.timerSpawns.push(e.subagentType ?? e.subagent_type ?? '')
+    return { deny: TIMER_SPAWN } as AgentSpawnResult
+  }
   if (w.spawnDeny !== undefined) return { deny: w.spawnDeny } as AgentSpawnResult
   if (e.model !== undefined && !AGENT_TOOL_MODELS.includes(e.model)) return { deny: modelValidationError(e.model) } as AgentSpawnResult
   const agentId = `agent-${w.spawns.length + 1}`

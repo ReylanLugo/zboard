@@ -109,7 +109,7 @@ export function setupDemo(w: World, tasksMd: string = ONE_TASK): Map<string, str
  * run's `turn.complete` with an empty answer completes it (a SubagentStop that
  * follows is a no-op). The report then reaches the main session as a peer message.
  * The clock does not move: the completion and every spawn it makes are awaited
- * inside the hook.
+ * inside the hook, and a spawn from a timer is refused (`installWorld`).
  */
 export async function stopAgent($: Engine, w: World, agentId: string, answer?: string): Promise<void> {
   if (answer !== undefined) w.transcripts.set(agentId, [...(w.transcripts.get(agentId) ?? []), handbackRow(answer)])

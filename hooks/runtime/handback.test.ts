@@ -125,7 +125,7 @@ test('a hand-back zboard never saw as a tool call is read from the agent\'s tran
   expect(w.spawns.map(spawn => spawn.subagentType)).toEqual(['zboard:researcher', 'zboard:planner'])
 })
 
-test('the next pipeline phase spawns inside the stopped agent\'s SubagentStop dispatch', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+test('the next pipeline phase spawns inside the stopped agent\'s SubagentStop dispatch, never from a timer', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   await boot($)
@@ -133,9 +133,10 @@ test('the next pipeline phase spawns inside the stopped agent\'s SubagentStop di
   handBack(w, lastAgent(w), ANSWERS.research)
   await subagentStop($, lastAgent(w))
   expect(w.spawns.map(spawn => spawn.subagentType)).toEqual(['zboard:researcher', 'zboard:planner'])
+  expect(w.timerSpawns).toEqual([])
 })
 
-test('a plan agent\'s retry spawns inside its SubagentStop dispatch', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+test('a plan agent\'s retry spawns inside its SubagentStop dispatch, never from a timer', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   scriptOpenspec(w)
   scriptGit(w)
@@ -148,4 +149,5 @@ test('a plan agent\'s retry spawns inside its SubagentStop dispatch', { timeoutM
   handBack(w, lastAgent(w), 'I have no question.')
   await subagentStop($, lastAgent(w))
   expect(w.spawns.map(spawn => spawn.subagentType)).toEqual(['zboard:brainstormer', 'zboard:brainstormer'])
+  expect(w.timerSpawns).toEqual([])
 })

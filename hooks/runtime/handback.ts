@@ -7,10 +7,9 @@ import { message, readBoard } from './log-store.ts'
 import { readPlan } from './plan-store.ts'
 
 // A background subagent reports through the engine's SubagentHandback tool and
-// then ends with no text. The engine runs a zboard-spawned agent's tool calls
-// without zboard's hooks (re-entry: zboard's own spawn lent them), so zboard
-// never sees that call; it reads the report from the agent's messages when the
-// agent's run completes.
+// then ends with no text. zboard does not capture that call: it reads the report
+// from the agent's messages when the agent's run completes (its turn.complete or
+// its SubagentStop, whichever comes first).
 
 /** The engine tool a background subagent ends its run with: `{ message }`. */
 export const HANDBACK_TOOL = 'SubagentHandback'
