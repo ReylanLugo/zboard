@@ -28,6 +28,7 @@ import { planTokens } from './runtime/plan-runner.ts'
 import { isolatePlan, onPlanAppend } from './runtime/plan-store.ts'
 import { caughtWrite } from './runtime/reentry-guard.ts'
 import { deliverNote, reentryNote } from './runtime/reentry-notes.ts'
+import { caughtPrompt, handbackDrop } from './runtime/handback-drop.ts'
 import { closeChanges, focusChange, renderChanges } from './ui/ChangesPane.tsx'
 import { closeDetail, renderDetail } from './ui/Detail.tsx'
 import { focusCard, renderPane } from './ui/Pane.tsx'
@@ -290,6 +291,17 @@ export const register: Register = (on, options) => {
     const agentId = e.agentId
     if (agentId !== undefined) await isolate(io, 'turn.complete.stop', () => completeAgent(io, ctx, { agentId, text: e.answer }, claim), undefined)
     return result
+  })
+
+  // A zboard agent's hand-back reaches the main session as a peer turn; zboard already took the
+  // report, so the turn is dropped (runtime/handback-drop.ts). Re-entry may skip this hook too:
+  // its `.catch` makes the same decision from the agent cache.
+  on('prompt.submit', async ($, e, next) => {
+    const drop = handbackDrop(agents.get(), e)
+    return drop === undefined ? next(e) : { drop }
+  }).catch(async ($, e, next) => {
+    const drop = caughtPrompt(agents.get(), e, next)
+    return drop === undefined ? next(e) : { drop }
   })
 
   // Native task mirroring (runtime/native.ts): the native result is what the model sees.
