@@ -10,9 +10,10 @@ import { EMPTY_LOG, boardOf } from './domain/log.ts'
 import type { PlanLog } from './plan/plan-log.ts'
 import { EMPTY_PLAN_LOG, planOf } from './plan/plan-log.ts'
 import type { Ctx } from './runtime/ctx.ts'
-import type { Io } from './runtime/io.ts'
+import type { Handback, Io } from './runtime/io.ts'
 import { captureStop, captureTokens, touch } from './runtime/capture.ts'
 import { guardWrite } from './runtime/guard.ts'
+import { HANDBACK_TOOL, captureHandback } from './runtime/handback.ts'
 import { noteFor } from './runtime/inject.ts'
 import { append, isolate, readBoard } from './runtime/log-store.ts'
 import { mirrorCreated, mirrorUpdated } from './runtime/native.ts'
@@ -43,6 +44,9 @@ const logAtom = atom({ plugin: 'zboard', key: 'log' } as const, EMPTY_LOG)
 const uiAtom = atom({ plugin: 'zboard', key: 'ui' } as const, DEFAULT_UI)
 const artifactsAtom = atom({ plugin: 'zboard', key: 'artifacts' } as const, {})
 const planAtom = atom({ plugin: 'zboard', key: 'plan' } as const, EMPTY_PLAN_LOG)
+const handbacksAtom = atom({ plugin: 'zboard', key: 'handbacks' } as const, [] as readonly Handback[])
+
+const NO_HANDBACKS: readonly Handback[] = []
 
 /** Repo-relative paths are the domain's; the engine resolves relative paths against its own cwd. */
 async function inRepo($: EngineInterface, path: string): Promise<string> {
@@ -95,6 +99,10 @@ function ioOf($: EngineInterface): Io {
       plan: {
         read: async () => (await read($, planAtom)) as PlanLog,
         update: fn => update($, planAtom, current => fn(current as PlanLog)) as Promise<PlanLog>,
+      },
+      handbacks: {
+        read: () => read($, handbacksAtom),
+        update: fn => update($, handbacksAtom, fn),
       },
     },
     command: { register: spec => $.command.register(spec) },
@@ -239,15 +247,20 @@ export const register: Register = (on, options) => {
     await isolatePlan(io, 'plan.SubagentStop', () => planStop(io, ctx, stop), undefined)
     return result
   })
-  // The one unmatched tool.call hook: activity capture, then comment delivery (runtime/inject.ts),
-  // which appends pending comments to the agent's next tool result as `context`.
+  // The one unmatched tool.call hook: activity capture, a zboard agent's SubagentHandback report
+  // kept for its stop (runtime/handback.ts; the main session gets a one-line note instead), then
+  // comment delivery (runtime/inject.ts), which appends pending comments to the next tool result.
   on('tool.call', async ($, e, next) => {
     const agentId = e.agentId
     if (agentId === undefined) return next(e)
     const io = ioOf($)
     await isolate(io, 'capture.tool.call', () => touch(io, agentId, e.tool), undefined)
+    const args = e as { readonly tool: string; readonly message?: unknown }
+    const note = args.tool === HANDBACK_TOOL
+      ? await isolate(io, 'handback.tool.call', () => captureHandback(io, agentId, args.message), undefined)
+      : undefined
     const found = await isolate(io, 'inject.tool.call', async () => noteFor(await readBoard(io), agentId), undefined)
-    const ran = await next(e)
+    const ran = await next(note === undefined ? e : ({ ...e, message: note } as typeof e))
     if (found === undefined || ran.deny !== undefined) return ran
     await isolate(io, 'inject.deliver', () => append(io, found.events), undefined)
     return { ...ran, context: [...(ran.context ?? []), found.note] }

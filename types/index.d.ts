@@ -35,6 +35,9 @@ export type ZboardPlan = {
   readonly seq: number
 }
 
+/** Reports zboard agents handed back through SubagentHandback, each kept until its agent's stop takes it. */
+export type ZboardHandbacks = readonly { readonly agentId: string; readonly message: string }[]
+
 declare module 'claude-code' {
   interface PluginState {
     zboard: {
@@ -42,6 +45,7 @@ declare module 'claude-code' {
       ui: ZboardUi
       artifacts: ZboardArtifacts
       plan: ZboardPlan
+      handbacks: ZboardHandbacks
     }
   }
 }

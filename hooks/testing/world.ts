@@ -4,9 +4,12 @@ import type { MockClock } from 'claude-code/testing'
 
 import { EMPTY_LOG } from '../domain/log.ts'
 import { EMPTY_PLAN_LOG } from '../plan/plan-log.ts'
-import type { Io, StatePort } from '../runtime/io.ts'
+import type { Handback, Io, StatePort } from '../runtime/io.ts'
 import { DEFAULT_UI } from '../runtime/ui-types.ts'
+import { HANDBACK_TOOL } from '../runtime/handback.ts'
 import { NATIVE_STATE } from './harness-facts.ts'
+
+export { HANDBACK_TOOL }
 
 export const ROOT = '/repo'
 export const NOW = 1_000_000
@@ -295,6 +298,7 @@ export function worldIo(w: World): Io {
       ui: memoryPort(w, 'ui', DEFAULT_UI),
       artifacts: memoryPort<Readonly<Record<string, string>>>(w, 'artifacts', {}),
       plan: memoryPort(w, 'plan', EMPTY_PLAN_LOG),
+      handbacks: memoryPort<readonly Handback[]>(w, 'handbacks', []),
     },
     store: {
       get: async key => w.store.get(key),
@@ -503,8 +507,6 @@ function installEngram(on: On, w: World): void {
 }
 
 /** The engine's SubagentHandback tool: the report reaches the main session as a peer message. */
-export const HANDBACK_TOOL = 'SubagentHandback'
-
 function installHandback(on: On, w: World): void {
   on('tool.call', { tool: HANDBACK_TOOL } as never, (_$: unknown, e: { readonly agentId?: string; readonly message?: unknown }) => {
     w.handbacks.push({ agentId: e.agentId ?? '', message: String(e.message ?? '') })
