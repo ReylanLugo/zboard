@@ -71,7 +71,8 @@ function ioOf($: EngineInterface): Io {
       list: () => $.agent.list(),
     },
     tool: {
-      call: input => $.tool.call(input),
+      // Generated types enumerate the MCP tools connected at load; a dynamic mcp__ name is checked at runtime instead.
+      call: input => $.tool.call(input as Parameters<typeof $.tool.call>[0]),
       register: spec => $.tool.register(spec),
     },
     store: {

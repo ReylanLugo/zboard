@@ -35,7 +35,7 @@ export async function zboard($: Engine, args: string): Promise<string> {
 }
 
 export async function callTool($: Engine, name: string, args: Record<string, unknown> = {}): Promise<{ ok: true; value: unknown } | { ok: false; error: string }> {
-  const out = await $.tool.call({ tool: `mcp__zboard__${name}` as `mcp__${string}__${string}`, ...args })
+  const out = await $.tool.call({ tool: `mcp__zboard__${name}`, ...args } as Parameters<typeof $.tool.call>[0])
   if (out.deny !== undefined) return { ok: false, error: out.deny }
   return { ok: true, value: JSON.parse(String(out.result)) as unknown }
 }
