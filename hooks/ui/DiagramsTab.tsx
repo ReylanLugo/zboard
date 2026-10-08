@@ -7,6 +7,7 @@ import { MMDC_HINT } from '../runtime/mermaid.ts'
 import { isExplanationCurrent } from '../runtime/plan-explain.ts'
 import type { DetailProps } from './ChangeDetail.tsx'
 import type { Els } from './els.ts'
+import { THEME } from './theme.ts'
 
 const IMAGE_ROWS = 20
 const IMAGE_COLUMNS_MAX = 80
@@ -14,7 +15,7 @@ const IMAGE_COLUMNS_MAX = 80
 /** D12: free structural diagram — Svg on desktop, ASCII in a Code block on the terminal (and for an oversized Svg). */
 function Structural(els: Els, props: DetailProps): RenderElement {
   const graph = layoutTasks(props.docs.parsedTasks)
-  const svg = toSvg(graph)
+  const svg = toSvg(graph, { line: THEME.steel, done: THEME.moss })
   if (props.surface === 'desktop' && svg.length <= SVG_MAX) {
     const { Box, Svg } = els as Elements['desktop']
     return <Box key="task-graph"><Svg source={svg} alt={`Task graph of ${props.rec.id}: ${graph.nodes.length} tasks, ${graph.edges.length} dependencies`} /></Box>

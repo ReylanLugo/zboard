@@ -25,6 +25,14 @@ test('the SVG has one node per task and one edge per dependency, text escaped', 
   expect(svg).toContain('1.1 Parse &lt;tasks&gt;')
 })
 
+test('a palette colors the SVG: nodes and edges stroked, done nodes filled', () => {
+  const svg = toSvg(graph(), { line: '#7A8594', done: '#6FA36B' })
+  expect(svg.match(/<line class="edge"[^>]*stroke="#7A8594"/g)).toHaveLength(3)
+  expect(svg).toMatch(/data-task="1\.1"><rect[^>]*fill="#6FA36B"[^>]*stroke="#7A8594"/)
+  expect(svg).toMatch(/data-task="1\.2"><rect[^>]*fill="none"[^>]*stroke="#7A8594"/)
+  expect(toSvg(graph())).not.toContain('#')
+})
+
 test('the ASCII drawing lists every node and edge', () => {
   const ascii = toAscii(graph())
   for (const id of ['1.1', '1.2', '2.1', '2.2']) expect(ascii).toContain(id)

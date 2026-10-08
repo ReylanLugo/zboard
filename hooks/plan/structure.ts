@@ -21,6 +21,16 @@ export interface TaskGraph {
 }
 
 export const SVG_MAX = 131_072
+
+/** Colors of a drawn graph: the stroke of nodes and edges, and the fill of a done node. */
+export interface SvgPalette {
+  readonly line: string
+  readonly done: string
+}
+
+/** No palette: the drawing follows the surface's text color, done nodes drawn with a thicker stroke only. */
+const PLAIN: SvgPalette = { line: 'currentColor', done: 'none' }
+const DONE_OPACITY = 0.35
 const NODE_W = 160
 const NODE_H = 32
 const GAP_X = 60
@@ -69,7 +79,10 @@ export function layoutTasks(tasks: readonly ParsedTask[]): TaskGraph {
   return { nodes, edges, layers: count }
 }
 
-export function toSvg(graph: TaskGraph): string {
+const fillOf = (node: GraphNode, palette: SvgPalette): string =>
+  (node.done && palette.done !== 'none' ? `fill="${palette.done}" fill-opacity="${DONE_OPACITY}"` : 'fill="none"')
+
+export function toSvg(graph: TaskGraph, palette: SvgPalette = PLAIN): string {
   const rows = Math.max(1, ...Array.from({ length: graph.layers }, (_, layer) => graph.nodes.filter(node => node.layer === layer).length))
   const width = PAD * 2 + Math.max(1, graph.layers) * NODE_W + Math.max(0, graph.layers - 1) * GAP_X
   const height = PAD * 2 + rows * NODE_H + (rows - 1) * GAP_Y
@@ -77,11 +90,11 @@ export function toSvg(graph: TaskGraph): string {
   const lines = graph.edges.map(edge => {
     const from = at.get(edge.from) ?? { x: 0, y: 0 }
     const to = at.get(edge.to) ?? { x: 0, y: 0 }
-    return `<line class="edge" data-edge="${escapeXml(`${edge.from}->${edge.to}`)}" x1="${from.x + NODE_W}" y1="${from.y + NODE_H / 2}" x2="${to.x}" y2="${to.y + NODE_H / 2}" stroke="currentColor" stroke-width="1"/>`
+    return `<line class="edge" data-edge="${escapeXml(`${edge.from}->${edge.to}`)}" x1="${from.x + NODE_W}" y1="${from.y + NODE_H / 2}" x2="${to.x}" y2="${to.y + NODE_H / 2}" stroke="${palette.line}" stroke-width="1"/>`
   })
   const boxes = graph.nodes.map(node => {
     const { x, y } = at.get(node.id) ?? { x: 0, y: 0 }
-    return `<g class="node" data-task="${escapeXml(node.id)}"><rect x="${x}" y="${y}" width="${NODE_W}" height="${NODE_H}" rx="4" fill="none" stroke="currentColor" stroke-width="${node.done ? 2 : 1}"/>`
+    return `<g class="node" data-task="${escapeXml(node.id)}"><rect x="${x}" y="${y}" width="${NODE_W}" height="${NODE_H}" rx="4" ${fillOf(node, palette)} stroke="${palette.line}" stroke-width="${node.done ? 2 : 1}"/>`
       + `<text x="${x + 8}" y="${y + 20}" font-size="11" font-family="monospace" fill="currentColor">${escapeXml(clip(`${node.id} ${node.title}`, LABEL_MAX))}</text></g>`
   })
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${lines.join('')}${boxes.join('')}</svg>`

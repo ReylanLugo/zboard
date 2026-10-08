@@ -9,6 +9,7 @@ import { SURFACES, findIn, mountPane } from '../testing/ui.ts'
 import type { World } from '../testing/world.ts'
 import { argvIs, installWorld } from '../testing/world.ts'
 import { boot, json, lastAgent, stopAgent, zboard } from '../testing/zboard.ts'
+import { THEME } from './theme.ts'
 
 const GRAPH_TASKS = [
   '## 1. Core', '', '- [x] 1.1 Export CSV writer [req: Export CSV]', '  Acceptance: x', '',
@@ -52,6 +53,8 @@ for (const surface of SURFACES) {
       const source = String((await findIn(ui, 'task-graph', 'Svg'))?.props.source ?? '')
       expect(source.match(/<g class="node"/g)).toHaveLength(3)
       expect(source.match(/<line class="edge"/g)).toHaveLength(2)
+      expect(source.match(new RegExp(`<line class="edge"[^>]*stroke="${THEME.steel}"`, 'g'))).toHaveLength(2)
+      expect(source).toMatch(new RegExp(`data-task="1\\.1"><rect[^>]*fill="${THEME.moss}"[^>]*stroke="${THEME.steel}"`))
     } else {
       const source = String((await findIn(ui, 'task-graph', 'Code'))?.props.source ?? '')
       expect(source).toContain('1.1 ──▶ 2.1')
