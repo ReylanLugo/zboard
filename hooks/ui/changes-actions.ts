@@ -6,13 +6,18 @@ import { askAnother } from '../runtime/plan-apply.ts'
 import { createChange } from '../runtime/plan-catalog.ts'
 import { commentOn } from '../runtime/plan-draft.ts'
 import { isolatePlan, readPlan } from '../runtime/plan-store.ts'
+import { pressWork } from '../runtime/press-work.ts'
 import type { ChangesTab, ChangesUi, ComposeKind } from '../runtime/ui-types.ts'
 import type { ChangeRecord } from '../plan/types.ts'
 import { defaultArtifact } from './changes-model.ts'
 
-/** A press runs its work isolated: a failure becomes a PlanError on the change (D16), never a broken pane. */
-export const act = (io: Io, rec: ChangeRecord, name: string, work: () => Promise<unknown>) => (): void => {
-  void isolatePlan(io, `ui.${name}`, async () => { await work() }, undefined, rec.id)
+/**
+ * A press's closure: it queues the work for zboard's ui.press hook, which runs it with its own
+ * ports inside its frame (runtime/press-work.ts). The work runs isolated: a failure becomes a
+ * PlanError on the change (D16), never a broken pane.
+ */
+export const act = (rec: ChangeRecord, name: string, work: (io: Io) => Promise<unknown>) => (): void => {
+  pressWork(io => isolatePlan(io, `ui.${name}`, async () => { await work(io) }, undefined, rec.id))
 }
 
 export async function setChanges(io: Io, change: (ui: ChangesUi) => ChangesUi): Promise<void> {

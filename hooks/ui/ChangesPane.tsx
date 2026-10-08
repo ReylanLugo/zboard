@@ -11,6 +11,7 @@ import { ChangeDetail } from './ChangeDetail.tsx'
 import { readableError } from '../plan/errors.ts'
 import { initOpenspec } from '../runtime/plan-init.ts'
 import { isolatePlan } from '../runtime/plan-store.ts'
+import { pressWork } from '../runtime/press-work.ts'
 import { selectChange, setChanges, setTab, startCompose, submitCompose, toggleRaw } from './changes-actions.ts'
 import { GROUPS, STAGE_ICONS, defaultArtifact, groupRows, groupTitle, headerText, isNotInitialized, listIssue, rowText, visibleChanges } from './changes-model.ts'
 import type { Els } from './els.ts'
@@ -97,7 +98,7 @@ function InitCard(els: Els, io: Io, props: ChangesProps): RenderElement {
         {INIT_WHY.map((line, index) => <Box key={`init-why-${index + 1}`}><Text dimColor>{line}</Text></Box>)}
       </Box>
       <Box key="init-actions" flexDirection="row" gap={1}>
-        <Button key="init" {...keyed('i', 'Initialize OpenSpec here')} variant="primary" onPress={() => void isolatePlan(io, 'ui.init', () => initOpenspec(io), undefined)} />
+        <Button key="init" {...keyed('i', 'Initialize OpenSpec here')} variant="primary" onPress={() => pressWork(io => isolatePlan(io, 'ui.init', () => initOpenspec(io), undefined))} />
         {failed === null ? null : RawToggle(els, io, props.ui)}
       </Box>
       {failed === null ? null : <Box key="init-error"><Text color={THEME.brick}>{`⚠ OpenSpec init failed: ${readableError(failed)}`}</Text></Box>}
@@ -158,7 +159,7 @@ function ChangesView(els: Els, surface: Surface, io: Io, ctx: Ctx, props: Change
       {Errors(els, props.plan, props.ui)}
       {Actions(els, io, props, rec)}
       {composing === null ? null : (
-        <Input key="compose" label={composeLabel(composing, rec, props.ui)} placeholder="type, then Enter" autoFocus onSubmit={value => void submitCompose(io, ctx, value)} />
+        <Input key="compose" label={composeLabel(composing, rec, props.ui)} placeholder="type, then Enter" autoFocus onSubmit={value => pressWork(io => isolatePlan(io, 'ui.compose', () => submitCompose(io, ctx, value), undefined))} />
       )}
       {Body(els, surface, io, ctx, props)}
     </Box>

@@ -26,6 +26,7 @@ import { flushPlanMirror, installPlanMirror } from './runtime/plan-mirror.ts'
 import { recoverPlan } from './runtime/plan-recovery.ts'
 import { planTokens } from './runtime/plan-runner.ts'
 import { isolatePlan, onPlanAppend } from './runtime/plan-store.ts'
+import { drainPressWork } from './runtime/press-work.ts'
 import { caughtWrite } from './runtime/reentry-guard.ts'
 import { deliverNote, reentryNote } from './runtime/reentry-notes.ts'
 import { caughtPrompt, handbackDrop } from './runtime/handback-drop.ts'
@@ -326,6 +327,23 @@ export const register: Register = (on, options) => {
     const ui = (await read($, uiAtom)) as UiState
     const now = await $.clock.now()
     return renderPane($.ui.resolve(e), e.surface, ioOf($), { board, ui, now, columns: e.props.bodyColumns })
+  })
+  // A Button press or an Input submit on any zboard element: core runs the element's closure
+  // beneath `next(e)`, which only queues its work (runtime/press-work.ts); the work, and any
+  // spawn it makes, then runs awaited inside this hook with this hook's ports.
+  on('ui.press', { plugin: 'zboard' }, async ($, e, next) => {
+    const pressed = await next(e)
+    const io = ioOf($)
+    await drainPressWork(io)
+    await isolate(io, 'ui.press.tick', () => tickIfDue(io, ctx), undefined)
+    return pressed
+  })
+  on('ui.input', { plugin: 'zboard', kind: 'submit' }, async ($, e, next) => {
+    const submitted = await next(e)
+    const io = ioOf($)
+    await drainPressWork(io)
+    await isolate(io, 'ui.input.tick', () => tickIfDue(io, ctx), undefined)
+    return submitted
   })
   on('ui.focus', async ($, e, next) => {
     const io = ioOf($)

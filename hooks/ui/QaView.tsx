@@ -19,7 +19,7 @@ export function QaView(els: Els, io: Io, ctx: Ctx, rec: ChangeRecord): RenderEle
   const last = qa.turns.at(-1)
   const open = !qa.done && last !== undefined && last.answer === undefined ? last : undefined
   const answered = qa.turns.filter(turn => turn.answer !== undefined)
-  const answer = (value: string): void => act(io, rec, 'qa.answer', () => answerQuestion(io, ctx, rec.id, value))()
+  const answer = (value: string): void => act(rec, 'qa.answer', io => answerQuestion(io, ctx, rec.id, value))()
   return (
     <Box key="qa" flexDirection="column">
       <Box key="qa-title"><Text bold>{`Brainstorm Q&A · ${answered.length}/${QA_CAP} answered`}</Text></Box>
@@ -35,8 +35,8 @@ export function QaView(els: Els, io: Io, ctx: Ctx, rec: ChangeRecord): RenderEle
           <Input key="qa-answer" label="or answer in your own words" placeholder="type, then Enter" onSubmit={value => answer(value)} />,
         ]}
       {qa.done
-        ? <Button key="qa-draft" label="draft brainstorm.md from the turns" onPress={act(io, rec, 'qa.draft', () => draftFromTurns(io, ctx, rec.id))} />
-        : <Button key="qa-finish" {...keyed('f', 'finish')} onPress={act(io, rec, 'qa.finish', () => finishBrainstorm(io, ctx, rec.id))} />}
+        ? <Button key="qa-draft" label="draft brainstorm.md from the turns" onPress={act(rec, 'qa.draft', io => draftFromTurns(io, ctx, rec.id))} />
+        : <Button key="qa-finish" {...keyed('f', 'finish')} onPress={act(rec, 'qa.finish', io => finishBrainstorm(io, ctx, rec.id))} />}
     </Box>
   )
 }

@@ -43,11 +43,11 @@ function Toolbar(els: Els, io: Io, ctx: Ctx, rec: ChangeRecord): RenderElement {
   const id = rec.id
   return (
     <Box key="toolbar" flexDirection="row" gap={1} flexWrap="wrap">
-      <Button key="comment" {...keyed('c', 'comment')} dimColor={!gates.comment.enabled} onPress={act(io, rec, 'comment', () => composeComment(io, id))} />
-      <Button key="draft" {...keyed('d', 'draft next')} dimColor={!gates.draft.enabled} onPress={act(io, rec, 'draft', () => draftNext(io, ctx, id))} />
-      <Button key="explain" {...keyed('e', 'explain')} dimColor={!gates.explain.enabled} onPress={act(io, rec, 'explain', () => explainChange(io, ctx, id))} />
-      <Button key="critique" {...keyed('x', 'critique')} dimColor={!gates.critique.enabled} onPress={act(io, rec, 'critique', () => critiqueChange(io, ctx, id))} />
-      <Button key="run" {...keyed('r', '▶ run')} {...(gates.run.enabled ? { variant: 'primary' as const } : { dimColor: true })} onPress={act(io, rec, 'run', () => runChange(io, ctx, id))} />
+      <Button key="comment" {...keyed('c', 'comment')} dimColor={!gates.comment.enabled} onPress={act(rec, 'comment', io => composeComment(io, id))} />
+      <Button key="draft" {...keyed('d', 'draft next')} dimColor={!gates.draft.enabled} onPress={act(rec, 'draft', io => draftNext(io, ctx, id))} />
+      <Button key="explain" {...keyed('e', 'explain')} dimColor={!gates.explain.enabled} onPress={act(rec, 'explain', io => explainChange(io, ctx, id))} />
+      <Button key="critique" {...keyed('x', 'critique')} dimColor={!gates.critique.enabled} onPress={act(rec, 'critique', io => critiqueChange(io, ctx, id))} />
+      <Button key="run" {...keyed('r', '▶ run')} {...(gates.run.enabled ? { variant: 'primary' as const } : { dimColor: true })} onPress={act(rec, 'run', io => runChange(io, ctx, id))} />
     </Box>
   )
 }

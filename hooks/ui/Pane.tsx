@@ -4,6 +4,7 @@ import type { Io } from '../runtime/io.ts'
 import { PANE_ID } from '../runtime/ctx.ts'
 import { openChanges } from '../runtime/plan-open.ts'
 import { isolatePlan } from '../runtime/plan-store.ts'
+import { pressWork } from '../runtime/press-work.ts'
 import { cycleFilter, cycleView, raiseSelected, select, startComment, submitComment, toggleSelectedBlock } from './actions.ts'
 import type { Els, ViewProps } from './els.ts'
 import { filterLabel, visibleTasks } from './filter.ts'
@@ -26,7 +27,7 @@ function Toolbar(els: Els, io: Io, props: ViewProps): RenderElement {
       <Button key="comment" {...keyed('c', 'comment')} onPress={() => void startComment(io)} />
       <Button key="block" {...keyed('b', 'block')} onPress={() => void toggleSelectedBlock(io)} />
       <Button key="priority" {...keyed('p', 'priority')} onPress={() => void raiseSelected(io)} />
-      <Button key="changes" {...keyed('o', 'changes')} onPress={() => void isolatePlan(io, 'ui.board.changes', () => openChanges(io, props.board.changeId ?? undefined), '')} />
+      <Button key="changes" {...keyed('o', 'changes')} onPress={() => pressWork(io => isolatePlan(io, 'ui.board.changes', async () => { await openChanges(io, props.board.changeId ?? undefined) }, undefined))} />
     </Box>
   )
 }
