@@ -4,7 +4,7 @@ import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
 
 import { INSTRUCTIONS_TASKS_JSON, LIST_JSON, STATUS_JSON, VALIDATE_OK_JSON, VALIDATE_UNKNOWN_JSON, scriptOpenspec, validateInvalidJson, validateNoDeltaJson } from '../testing/openspec.ts'
 import { argvIs, installWorld, worldIo } from '../testing/world.ts'
-import { archiveCli, changeStatus, instructions, listChanges, newChange, validateChange } from './openspec-cli.ts'
+import { SCHEMA, archiveCli, changeStatus, instructions, listChanges, newChange, validateChange } from './openspec-cli.ts'
 
 test('list parses the recorded output', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
@@ -88,8 +88,10 @@ test('new change and archive run the exact argv; an archive conflict is a failur
   const w = installWorld(on)
   const script = scriptOpenspec(w)
   const io = worldIo(w)
-  expect(await newChange(io, 'add-export')).toEqual({ ok: true, value: true })
+  expect(await newChange(io, 'add-export', SCHEMA)).toEqual({ ok: true, value: true })
   expect(w.runs.at(-1)).toEqual(['openspec', 'new', 'change', 'add-export', '--schema', 'superpowers-bridge'])
+  expect(await newChange(io, 'add-other')).toEqual({ ok: true, value: true })
+  expect(w.runs.at(-1)).toEqual(['openspec', 'new', 'change', 'add-other'])
   expect((await archiveCli(io, 'add-export')).ok).toBe(true)
   expect(w.runs.at(-1)).toEqual(['openspec', 'archive', 'add-export', '--yes', '--json'])
   script.archive = { exitCode: 1, stderr: 'delta conflict: requirement "Export CSV" already exists' }

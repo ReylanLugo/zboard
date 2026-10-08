@@ -3,7 +3,7 @@ import { expect, test } from 'claude-code/testing'
 import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
 
 import { groupOf, isDone } from '../plan/lifecycle.ts'
-import { READY_FILES, READY_TASKS, scriptOpenspec, seedChange } from '../testing/openspec.ts'
+import { DEFAULT_SCHEMA, READY_FILES, READY_TASKS, scriptOpenspec, seedChange } from '../testing/openspec.ts'
 import { argvIs, installWorld, worldIo } from '../testing/world.ts'
 import { checkOpenChange, createChange, refreshChange, refreshChanges } from './plan-catalog.ts'
 import { appendPlan, readPlan } from './plan-store.ts'
@@ -102,7 +102,7 @@ test('creating a change validates the id, refuses an existing one and records it
   expect(await createChange(io, '--yes')).toBe('zboard: invalid change name: --yes')
   expect(w.runs).toEqual([])
   expect(await createChange(io, 'add-export')).toBe('zboard: created add-export')
-  expect(w.runs[0]).toEqual(['openspec', 'new', 'change', 'add-export', '--schema', 'superpowers-bridge'])
+  expect(w.runs.filter(argv => argv[1] === 'new')).toEqual([['openspec', 'new', 'change', 'add-export', '--schema', 'superpowers-bridge']])
   const rec = (await readPlan(io)).changes['add-export']
   expect(rec).toMatchObject({ created: true, stage: 'draft' })
   expect(rec === undefined ? '' : groupOf(rec)).toBe('drafts')
@@ -110,4 +110,21 @@ test('creating a change validates the id, refuses an existing one and records it
   const runs = w.runs.length
   expect(await createChange(io, 'add-export')).toBe('zboard: change add-export already exists')
   expect(w.runs).toHaveLength(runs)
+})
+
+test('without the superpowers-bridge schema a new change uses the project default', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+  const w = installWorld(on)
+  scriptOpenspec(w, { schemas: [DEFAULT_SCHEMA] })
+  const io = worldIo(w)
+  expect(await createChange(io, 'add-export')).toBe('zboard: created add-export')
+  expect(w.runs.filter(argv => argv[1] === 'new')).toEqual([['openspec', 'new', 'change', 'add-export']])
+  expect((await readPlan(io)).changes['add-export']?.status?.schema).toBe(DEFAULT_SCHEMA)
+})
+
+test('a failing schemas call falls back to the project default schema', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+  const w = installWorld(on)
+  w.rules.push({ match: argvIs('openspec', 'schemas'), answer: { exitCode: 1, stderr: 'unknown command schemas' } })
+  scriptOpenspec(w)
+  expect(await createChange(worldIo(w), 'add-export')).toBe('zboard: created add-export')
+  expect(w.runs.filter(argv => argv[1] === 'new')).toEqual([['openspec', 'new', 'change', 'add-export']])
 })

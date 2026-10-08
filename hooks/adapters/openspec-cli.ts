@@ -45,6 +45,7 @@ const NO_DELTA = 'Change must have at least one delta'
 interface Ran {
   readonly exitCode: number
   readonly stdout: string
+  readonly stderr: string
   readonly output: string
 }
 
@@ -65,9 +66,10 @@ const parse = (text: string): unknown => {
 async function run(io: Io, args: readonly string[]): Promise<Ran> {
   try {
     const out = await io.process.run(['openspec', ...args], { cwd: await io.session.root(), timeoutMs: OPENSPEC_TIMEOUT_MS })
-    return { exitCode: out.exitCode, stdout: out.stdout, output: `${out.stdout}\n${out.stderr}` }
+    return { exitCode: out.exitCode, stdout: out.stdout, stderr: out.stderr, output: `${out.stdout}\n${out.stderr}` }
   } catch (error) {
-    return { exitCode: -1, stdout: '', output: `openspec did not run: ${error instanceof Error ? error.message : String(error)}` }
+    const output = `openspec did not run: ${error instanceof Error ? error.message : String(error)}`
+    return { exitCode: -1, stdout: '', stderr: output, output }
   }
 }
 
@@ -143,10 +145,34 @@ export async function validateChange(io: Io, id: string): Promise<CliResult<Vali
   return { ok: true, value: { valid, output: valid ? 'valid' : issuesText(items, ran.output), onlyNoDelta: !valid && isOnlyNoDelta(items) } }
 }
 
-export async function newChange(io: Io, id: string, schema: string = SCHEMA): Promise<CliResult<true>> {
+/** Without a schema, openspec uses the project's default (`openspec/config.yaml`). */
+export async function newChange(io: Io, id: string, schema?: string): Promise<CliResult<true>> {
   if (!isPlanChangeName(id)) return invalidName(id)
-  const ran = await run(io, ['new', 'change', id, '--schema', schema])
+  const ran = await run(io, ['new', 'change', id, ...(schema === undefined ? [] : ['--schema', schema])])
   return ran.exitCode === 0 ? { ok: true, value: true } : fail(ran.output)
+}
+
+/** The schema names `openspec schemas --json` lists (a top-level array). */
+export async function listSchemas(io: Io): Promise<CliResult<readonly string[]>> {
+  const ran = await run(io, ['schemas', '--json'])
+  const value = parse(ran.stdout)
+  if (ran.exitCode !== 0 || !Array.isArray(value)) return fail(ran.output)
+  return { ok: true, value: value.filter(isRecord).flatMap(schema => (typeof schema.name === 'string' ? [schema.name] : [])) }
+}
+
+/** Whether zboard's preferred schema (superpowers-bridge, a user schema) is installed; a failing call counts as no. */
+export async function hasPreferredSchema(io: Io): Promise<boolean> {
+  const listed = await listSchemas(io)
+  return listed.ok && listed.value.includes(SCHEMA)
+}
+
+/**
+ * Creates `openspec/` at the repository root with no AI tool integration. A failure keeps
+ * stderr first: init prints long unrelated notices on stdout that would push the error past the cap.
+ */
+export async function initCli(io: Io): Promise<CliResult<true>> {
+  const ran = await run(io, ['init', '--tools', 'none', '--no-animation'])
+  return ran.exitCode === 0 ? { ok: true, value: true } : fail(`${ran.stderr}\n${ran.stdout}`)
 }
 
 /** The only writer of openspec/specs/ (D7, D14). */

@@ -2,9 +2,10 @@ import type { Io } from './io.ts'
 
 import type { ChangeFile } from '../adapters/artifacts.ts'
 import { archivedChanges, changeFiles, changeFingerprint, readCurrent } from '../adapters/artifacts.ts'
-import { SCHEMA, changeStatus, listChanges, newChange, validateChange } from '../adapters/openspec-cli.ts'
+import { SCHEMA, changeStatus, hasPreferredSchema, listChanges, newChange, validateChange } from '../adapters/openspec-cli.ts'
 import { parseTasksMd } from '../adapters/tasks-md.ts'
 import type { ParsedTask } from '../domain/events.ts'
+import { readableError } from '../plan/errors.ts'
 import { fingerprintOf } from '../plan/hash.ts'
 import { allTasksChecked } from '../plan/lifecycle.ts'
 import type { PlanEventBody } from '../plan/plan-events.ts'
@@ -86,10 +87,11 @@ export async function refreshChange(io: Io, id: string): Promise<PlanBoard> {
 export async function createChange(io: Io, id: string): Promise<string> {
   if (!isPlanChangeName(id)) return `zboard: invalid change name: ${id}`
   if (await io.fs.exists(changeDir(id))) return `zboard: change ${id} already exists`
-  const created = await newChange(io, id, SCHEMA)
+  // Machines without the superpowers-bridge user schema fall back to the project's default schema.
+  const created = await newChange(io, id, (await hasPreferredSchema(io)) ? SCHEMA : undefined)
   if (!created.ok) {
     await appendPlan(io, [{ type: 'PlanError', hook: 'new change', message: created.output }])
-    return `zboard: openspec new change failed: ${created.output}`
+    return `zboard: openspec new change failed: ${readableError(created.output)}`
   }
   await appendPlan(io, [{ type: 'ChangeCreated', changeId: id }])
   await refreshChange(io, id)
