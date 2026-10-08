@@ -1,8 +1,9 @@
 import type { ParsedTask } from '../domain/events.ts'
-import { groupOf, nextArtifact } from '../plan/lifecycle.ts'
+import { actionsFor, groupOf, nextArtifact } from '../plan/lifecycle.ts'
 import type { SpecFile } from '../plan/readiness.ts'
 import { coveringTasks, parseRequirements } from '../plan/readiness.ts'
 import { isNoOpenspecRoot } from '../plan/errors.ts'
+import { needsRepair } from '../plan/repair.ts'
 import type { ChangeGroup, ChangeRecord, ChangeStage, PlanBoard } from '../plan/types.ts'
 import { BRAINSTORM_ARTIFACT } from '../plan/types.ts'
 import { progressBar } from './format.ts'
@@ -91,6 +92,10 @@ export const READINESS_PENDING = 'readiness · checked once the plan is written'
 /** The change's schema has a `plan` artifact that is not done yet. */
 export const isPlanPending = (rec: ChangeRecord): boolean =>
   (rec.status?.artifacts ?? []).some(artifact => artifact.id === 'plan' && artifact.status !== 'done')
+
+/** The repair button shows once the plan is written, coverage or acceptance fails, and a comment would be accepted. */
+export const offersRepair = (rec: ChangeRecord): boolean =>
+  !isPlanPending(rec) && needsRepair(rec.readiness) && actionsFor(rec).comment.enabled
 
 export function readinessLine(rec: ChangeRecord): string {
   if (rec.readiness.length === 0) return 'readiness: not computed yet'

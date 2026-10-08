@@ -85,6 +85,7 @@ one readable line (`⚠ <message> · fix: <fix>`); `o` toggles the raw CLI outpu
 | `c` | Comment on the selected artifact → the drafter proposes a diff |
 | `a` / `z` | Accept / reject the pending diff |
 | `e` / `x` | Explain (cached by the change fingerprint) / critique |
+| `k` | Repair tasks: ask the drafter to add `[req: …]` tags and `Acceptance:` lines to tasks.md (shown when coverage or acceptance fails; the result is a normal pending proposal) |
 | `r` | ▶ Run on the board — only when every readiness check passes |
 | Tab, Esc | Move between tabs and buttons / close the viewer |
 

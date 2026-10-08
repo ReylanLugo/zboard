@@ -10,11 +10,12 @@ import { critiqueChange } from '../runtime/plan-critique.ts'
 import type { ChangeDocs, DocFile } from '../runtime/plan-docs.ts'
 import { clipMarkdown } from '../runtime/plan-docs.ts'
 import { explainChange, isExplanationCurrent } from '../runtime/plan-explain.ts'
+import { repairTasks } from '../runtime/plan-draft.ts'
 import { runChange } from '../runtime/plan-run.ts'
 import type { ChangesTab, ChangesUi } from '../runtime/ui-types.ts'
 import { CHANGES_TABS } from '../runtime/ui-types.ts'
 import { act, composeComment, selectArtifact, setTab } from './changes-actions.ts'
-import { READINESS_PENDING, defaultArtifact, historyRows, isPlanPending, readinessLine, stepperMarks, uncoveredRequirements } from './changes-model.ts'
+import { READINESS_PENDING, defaultArtifact, historyRows, offersRepair, isPlanPending, readinessLine, stepperMarks, uncoveredRequirements } from './changes-model.ts'
 import { DiagramsTab } from './DiagramsTab.tsx'
 import { keyed, readinessFailureLine } from './format.ts'
 import { DiffView } from './DiffView.tsx'
@@ -94,14 +95,15 @@ function Stepper(els: Els, io: Io, rec: ChangeRecord, ui: ChangesUi): RenderElem
 }
 
 /** Readiness only gates Run, which needs the plan: until it is written the checks are not shown. */
-function Readiness(els: Els, rec: ChangeRecord): RenderElement[] {
-  const { Box, Text } = els
+function Readiness(els: Els, io: Io, ctx: Ctx, rec: ChangeRecord): RenderElement[] {
+  const { Box, Button, Text } = els
   if (isPlanPending(rec)) return [<Box key="readiness"><Text dimColor>{READINESS_PENDING}</Text></Box>]
   const isReady = rec.readiness.length > 0 && rec.readiness.every(check => check.ok)
   const color = rec.readiness.length === 0 ? THEME.steel : isReady ? THEME.moss : THEME.brick
   return [
     <Box key="readiness"><Text bold color={color}>{readinessLine(rec)}</Text></Box>,
     ...rec.readiness.filter(check => !check.ok).map(check => <Box key={`check:${check.id}`}><Text color={THEME.brick}>{readinessFailureLine(check)}</Text></Box>),
+    ...(offersRepair(rec) ? [<Box key="repair-row"><Button key="repair" {...keyed('k', 'repair tasks')} onPress={act(rec, 'repair', io => repairTasks(io, ctx, rec.id))} /></Box>] : []),
   ]
 }
 
@@ -198,7 +200,7 @@ export function ChangeDetail(els: Els, io: Io, ctx: Ctx, props: DetailProps): Re
     <Box key="detail" flexDirection="column" flexGrow={1}>
       {Header(els, props.rec, props.docs, props.ui)}
       {Stepper(els, io, props.rec, props.ui)}
-      {Readiness(els, props.rec)}
+      {Readiness(els, io, ctx, props.rec)}
       {Toolbar(els, io, ctx, props.rec)}
       {Overlays(els, io, ctx, props)}
       {Tabs(els, io, props.ui)}

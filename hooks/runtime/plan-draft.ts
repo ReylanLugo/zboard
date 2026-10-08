@@ -8,10 +8,13 @@ import type { DraftAnswer } from '../plan/contracts.ts'
 import { parseDraft } from '../plan/contracts.ts'
 import { actionsFor } from '../plan/lifecycle.ts'
 import { buildProposal, normalizeRel, scopeError } from '../plan/proposals.ts'
+import { parseRequirements } from '../plan/readiness.ts'
+import { repairInstruction, repairTargets } from '../plan/repair.ts'
 import type { DraftJob } from '../plan/types.ts'
-import { BRAINSTORM_ARTIFACT, changeDir } from '../plan/types.ts'
+import { BRAINSTORM_ARTIFACT, TASKS_ARTIFACT, changeDir } from '../plan/types.ts'
 import type { Ctx } from './ctx.ts'
 import type { JobHandler } from './plan-runner.ts'
+import { specFilesOf } from './plan-catalog.ts'
 import { startJob } from './plan-runner.ts'
 import { appendPlan, readPlan } from './plan-store.ts'
 
@@ -69,4 +72,12 @@ export async function commentOn(io: Io, ctx: Ctx, changeId: string, artifact: st
     return false
   }
   return startJob(io, ctx, changeId, { kind: 'draft', artifact, note })
+}
+
+/** Asks the drafter to add req tags and acceptance lines to tasks.md, as a comment: the result is a normal pending proposal. */
+export async function repairTasks(io: Io, ctx: Ctx, changeId: string): Promise<boolean> {
+  const rec = (await readPlan(io)).changes[changeId]
+  if (rec === undefined) return false
+  const requirements = parseRequirements(specFilesOf(await changeFiles(io, changeId), changeId)).map(requirement => requirement.name)
+  return commentOn(io, ctx, changeId, TASKS_ARTIFACT, repairInstruction([...new Set(requirements)], repairTargets(rec.readiness)))
 }
