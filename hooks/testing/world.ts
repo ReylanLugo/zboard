@@ -64,8 +64,8 @@ export interface World {
   readonly debug: string[]
   /** Each agent's conversation rows, as `$.session.messages({ agentId })` reads them. */
   readonly transcripts: Map<string, SessionMessage[]>
-  /** The reports that reached the main session through SubagentHandback, as the engine delivered them. */
-  readonly handbacks: { readonly agentId: string; readonly message: string }[]
+  /** The prompts that entered the main session (a peer hand-back zboard dropped never enters). */
+  readonly prompts: string[]
   readonly clock: MockClock
   readonly timers: IoTimer[]
   spawnDeny: string | undefined
@@ -119,7 +119,7 @@ export function installWorld(on: On): World {
     memory: new Map(),
     debug: [],
     transcripts: new Map(),
-    handbacks: [],
+    prompts: [],
     clock: ioClock(on, timers),
     timers,
     spawnDeny: undefined,
@@ -134,7 +134,6 @@ export function installWorld(on: On): World {
   installRegistry(on, w)
   installUi(on, w)
   installEngram(on, w)
-  installHandback(on, w)
   installClassic(on)
   if (!NATIVE_STATE) installFakeState(on)
   return w
@@ -165,6 +164,10 @@ function installSession(on: On, w: World): void {
     return next(e)
   })
   on('turn.complete', (_$, e) => ({ text: e.answer }))
+  on('prompt.submit', (_$, e) => {
+    w.prompts.push(e.text)
+    return { text: e.text, origin: e.origin }
+  })
 }
 
 type Answer<T> = { readonly value: T } | { readonly deny: string }
@@ -504,15 +507,6 @@ function installEngram(on: On, w: World): void {
   on('tool.call', { tool: 'mcp__engram__mem_save' }, (_$, e) => engramCall(w, e.tool, e))
   on('tool.call', { tool: 'mcp__engram__mem_search' }, (_$, e) => engramCall(w, e.tool, e))
   on('tool.call', { tool: 'mcp__engram__mem_get_observation' }, (_$, e) => engramCall(w, e.tool, e))
-}
-
-/** The engine's SubagentHandback tool: the report reaches the main session as a peer message. */
-function installHandback(on: On, w: World): void {
-  on('tool.call', { tool: HANDBACK_TOOL } as never, (_$: unknown, e: { readonly agentId?: string; readonly message?: unknown }) => {
-    w.handbacks.push({ agentId: e.agentId ?? '', message: String(e.message ?? '') })
-    const text = '{"success":true,"message":"Report delivered to your caller."}'
-    return { result: text, text }
-  })
 }
 
 /** An assistant row whose only block is a SubagentHandback call, as a subagent's transcript holds it. */

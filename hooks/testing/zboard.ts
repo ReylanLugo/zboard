@@ -1,9 +1,10 @@
+import type { PromptSubmitResult } from 'claude-code'
 import type { Engine } from 'claude-code/testing'
 
 import type { Task } from '../domain/types.ts'
 import type { StatusView } from '../tools/views.ts'
 import type { ProcessAnswer, World } from './world.ts'
-import { HANDBACK_TOOL, argvIs, handbackRow } from './world.ts'
+import { argvIs, handbackRow } from './world.ts'
 
 export const TASKS_PATH = '/repo/openspec/changes/demo/tasks.md'
 export const ONE_TASK = '## 1. Core\n\n- [ ] 1.1 Parse tasks\n'
@@ -103,32 +104,34 @@ export function setupDemo(w: World, tasksMd: string = ONE_TASK): Map<string, str
 }
 
 /**
- * Ends an agent as the engine does: a background subagent reports through the
- * SubagentHandback tool (its transcript holds the call), then stops with no text
- * of its own, so `last_assistant_message` is absent. Timers the stop set run after.
+ * Ends a zboard-spawned agent as the engine does. Its run reports through the
+ * SubagentHandback tool (its messages hold the call) and ends with no text; the
+ * engine raises nothing of that run's tool calls or SubagentStop into zboard (the
+ * plugin's own spawn lent them: re-entry), only the run's `turn.complete` with
+ * an empty answer. The report then reaches the main session as a peer message.
+ * Timers the completion set run after.
  */
 export async function stopAgent($: Engine, w: World, agentId: string, answer?: string): Promise<void> {
-  if (answer !== undefined) {
-    w.transcripts.set(agentId, [...(w.transcripts.get(agentId) ?? []), handbackRow(answer)])
-    await $.tool.call({ tool: HANDBACK_TOOL, message: answer, agentId } as never)
-  }
-  await fireStop($, w, agentId)
+  if (answer !== undefined) w.transcripts.set(agentId, [...(w.transcripts.get(agentId) ?? []), handbackRow(answer)])
+  await completeTurn($, w, agentId, '')
+  if (answer !== undefined) await deliverPeer($, agentId, answer)
 }
 
-/** The legacy ending: the agent's final text arrives as `last_assistant_message`. */
+/** An agent whose run ends with text: the engine's `turn.complete` carries it as `answer`. */
 export async function stopAgentWithText($: Engine, w: World, agentId: string, answer: string): Promise<void> {
-  await fireStop($, w, agentId, answer)
+  await completeTurn($, w, agentId, answer)
 }
 
-async function fireStop($: Engine, w: World, agentId: string, text?: string): Promise<void> {
-  await $.classic.SubagentStop({
-    stop_hook_active: false,
-    agent_id: agentId,
-    agent_transcript_path: `/t/${agentId}.jsonl`,
-    agent_type: 'zboard',
-    ...(text === undefined ? {} : { last_assistant_message: text }),
-  })
+async function completeTurn($: Engine, w: World, agentId: string, answer: string): Promise<void> {
+  await $.turn.complete({ answer, durationMs: 1, isAborted: false, turnId: `turn-${agentId}`, agentId, reason: 'answer' })
   await w.clock.advance(0)
+}
+
+/** A hand-back as the main session receives it: a peer turn naming the agent. */
+export const agentMessage = (agentId: string, report: string): string => `<agent-message from="${agentId}">\n${report}\n</agent-message>`
+
+export async function deliverPeer($: Engine, agentId: string, report: string): Promise<PromptSubmitResult> {
+  return $.prompt.submit({ text: agentMessage(agentId, report), wait: false, origin: { kind: 'peer' } })
 }
 
 export const lastAgent = (w: World): string => w.spawns.at(-1)?.agentId ?? ''
