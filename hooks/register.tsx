@@ -244,7 +244,10 @@ export const register: Register = (on, options) => {
     const answer = await isolate(io, 'handback.SubagentStop', () => stopAnswer(io, e.agent_id, text), text)
     const stop = { agentId: e.agent_id, transcriptPath: e.agent_transcript_path, answer, effort: e.effort?.level }
     await isolate(io, 'classic.SubagentStop', () => captureStop(io, stop), undefined)
-    await isolatePlan(io, 'plan.SubagentStop', () => planStop(io, ctx, stop), undefined)
+    // A plan agent's next step (a retry or the next job) spawns after this dispatch, never inside it.
+    io.clock.after(0, () => {
+      void isolatePlan(io, 'plan.SubagentStop', () => planStop(io, ctx, stop), undefined)
+    })
     return result
   })
   // The one unmatched tool.call hook: activity capture; a zboard agent's SubagentHandback report is

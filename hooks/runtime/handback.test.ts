@@ -93,3 +93,35 @@ test('a hand-back zboard never saw as a tool call is read from the agent\'s tran
   await w.clock.advance(0)
   expect(w.spawns.map(spawn => spawn.subagentType)).toEqual(['zboard:researcher', 'zboard:planner'])
 })
+
+const subagentStop = ($: Engine, agentId: string) =>
+  $.classic.SubagentStop({ stop_hook_active: false, agent_id: agentId, agent_transcript_path: `/t/${agentId}.jsonl`, agent_type: 'zboard' })
+
+test('the next pipeline phase spawns after the stopped agent\'s SubagentStop, never inside it', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+  const w = installWorld(on)
+  setupDemo(w)
+  await boot($)
+  await zboard($, 'run demo')
+  await handBack($, lastAgent(w), ANSWERS.research)
+  await subagentStop($, lastAgent(w))
+  expect(w.spawns).toHaveLength(1)
+  await w.clock.advance(0)
+  expect(w.spawns.map(spawn => spawn.subagentType)).toEqual(['zboard:researcher', 'zboard:planner'])
+})
+
+test('a plan agent\'s retry spawns after its SubagentStop, never inside it', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+  const w = installWorld(on)
+  scriptOpenspec(w)
+  scriptGit(w)
+  await boot($)
+  await zboard($, 'changes')
+  const ui = await mountPane($, 'terminal', 'zboard-changes')
+  await ui.press({ key: 'new' })
+  await ui.input({ key: 'compose', text: 'add-export' })
+  await ui.press({ key: 'draft' })
+  await handBack($, lastAgent(w), 'I have no question.')
+  await subagentStop($, lastAgent(w))
+  expect(w.spawns).toHaveLength(1)
+  await w.clock.advance(0)
+  expect(w.spawns.map(spawn => spawn.subagentType)).toEqual(['zboard:brainstormer', 'zboard:brainstormer'])
+})

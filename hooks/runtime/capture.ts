@@ -3,7 +3,7 @@ import { runOf, taskOfAgent } from '../domain/project.ts'
 import type { Board } from '../domain/types.ts'
 import { emitAgentStop } from './bus.ts'
 import type { Io } from './io.ts'
-import { append, readBoard } from './log-store.ts'
+import { append, isolate, readBoard } from './log-store.ts'
 
 // Engine capture. The hooks that call these handlers live in register.tsx
 // (one unmatched hook per event); each handler records what an engine event
@@ -27,11 +27,18 @@ export interface SubagentStopInput {
   readonly effort?: string
 }
 
+/**
+ * Records a pipeline agent's end now; its completion (evaluation, then the next
+ * phase's spawn) runs on a timer after the engine's SubagentStop dispatch, so a
+ * new agent never starts inside the dying one's stop.
+ */
 export async function captureStop(io: Io, stop: SubagentStopInput): Promise<void> {
   if (taskOfAgent(await readBoard(io), stop.agentId) === undefined) return
   const { agentId, transcriptPath, effort, answer } = stop
   await append(io, [{ type: 'AgentStopped', agentId, transcriptPath, ...(effort === undefined ? {} : { effort }) }])
-  await emitAgentStop(io, { agentId, answer, transcriptPath, effort })
+  io.clock.after(0, () => {
+    void isolate(io, 'capture.agentStop', () => emitAgentStop(io, { agentId, answer, transcriptPath, effort }), undefined)
+  })
 }
 
 export async function captureTokens(io: Io, agentId: string | undefined, usage: { readonly input_tokens?: number; readonly output_tokens?: number } | undefined): Promise<void> {
