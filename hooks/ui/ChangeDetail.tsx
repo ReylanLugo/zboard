@@ -16,7 +16,7 @@ import { CHANGES_TABS } from '../runtime/ui-types.ts'
 import { act, composeComment, selectArtifact, setTab } from './changes-actions.ts'
 import { READINESS_PENDING, defaultArtifact, historyRows, isPlanPending, readinessLine, stepperMarks, uncoveredRequirements } from './changes-model.ts'
 import { DiagramsTab } from './DiagramsTab.tsx'
-import { keyed } from './format.ts'
+import { keyed, readinessFailureLine } from './format.ts'
 import { DiffView } from './DiffView.tsx'
 import { QaView, showsQa } from './QaView.tsx'
 import { CritiqueList, ForecastView, RetryView, VerifyTab } from './VerifyTab.tsx'
@@ -101,7 +101,7 @@ function Readiness(els: Els, rec: ChangeRecord): RenderElement[] {
   const color = rec.readiness.length === 0 ? THEME.steel : isReady ? THEME.moss : THEME.brick
   return [
     <Box key="readiness"><Text bold color={color}>{readinessLine(rec)}</Text></Box>,
-    ...rec.readiness.filter(check => !check.ok).map(check => <Box key={`check:${check.id}`}><Text color={THEME.brick}>{`✗ ${check.id}: ${check.detail}`}</Text></Box>),
+    ...rec.readiness.filter(check => !check.ok).map(check => <Box key={`check:${check.id}`}><Text color={THEME.brick}>{readinessFailureLine(check)}</Text></Box>),
   ]
 }
 

@@ -1,6 +1,7 @@
 import { displayModel } from '../domain/config.ts'
 import { activeRun } from '../domain/project.ts'
 import type { AgentRun, Board, Phase, Task } from '../domain/types.ts'
+import type { ReadinessCheck } from '../plan/types.ts'
 import type { View } from '../runtime/ui-types.ts'
 import type { Color } from './theme.ts'
 import { THEME, roleColor } from './theme.ts'
@@ -189,4 +190,22 @@ export function headerRuler(board: Board, view: View, columns: number): HeaderRu
   const width = fixed + RULER_MIN_FILL <= beside ? beside : room
   const fitted = clip(label, label.length - Math.max(0, fixed + RULER_MIN_FILL - width))
   return { ruler: rulerSegments(fitted, width - (fixed - label.length + fitted.length), facts), facts: factLine }
+}
+
+const FAILURE_SHOWN = 3
+const FAILURE_WIDTH = 80
+const TASK_WIDE: Readonly<Partial<Record<ReadinessCheck['id'], string>>> = { coverage: 'name no requirement', acceptance: 'missing' }
+
+/** One short line for a failing readiness check: the count and at most the first three items. */
+export function readinessFailureLine(check: ReadinessCheck): string {
+  const failures = check.failures ?? [check.detail]
+  const prefix = `✗ ${check.id}:`
+  if (failures.length <= 1) return `${prefix} ${clip(failures[0] ?? check.detail, FAILURE_WIDTH)}`
+  const more = failures.length > FAILURE_SHOWN
+  const taskWide = TASK_WIDE[check.id]
+  if (taskWide !== undefined && check.subjects !== undefined && check.subjects.length === failures.length) {
+    return `${prefix} ${failures.length} tasks ${taskWide} (${[...check.subjects.slice(0, FAILURE_SHOWN), ...(more ? ['…'] : [])].join(', ')})`
+  }
+  const shown = failures.slice(0, FAILURE_SHOWN).map(failure => clip(failure, FAILURE_WIDTH))
+  return `${prefix} ${failures.length} failures · ${[...shown, ...(more ? ['…'] : [])].join(' · ')}`
 }

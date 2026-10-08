@@ -93,8 +93,10 @@ function planSection(planMd: string | undefined, label: string): string {
   return (end < 0 ? rest : rest.slice(0, end)).join('\n')
 }
 
-const check = (id: ReadinessId, failures: readonly string[], okDetail: string): ReadinessCheck =>
-  (failures.length === 0 ? { id, ok: true, detail: okDetail } : { id, ok: false, detail: failures.join('; ') })
+const check = (id: ReadinessId, failures: readonly string[], okDetail: string, subjects?: readonly string[]): ReadinessCheck =>
+  (failures.length === 0
+    ? { id, ok: true, detail: okDetail }
+    : { id, ok: false, detail: failures.join('; '), failures, ...(subjects === undefined ? {} : { subjects }) })
 
 function sizeFailures(tasks: readonly ParsedTask[]): string[] {
   const long = tasks.filter(task => task.description.length > TASK_TEXT_MAX).map(task => `${task.label} is ${task.description.length} characters (max ${TASK_TEXT_MAX})`)
@@ -116,14 +118,14 @@ export function readinessChecks(input: ReadinessInput): ReadinessCheck[] {
   const requirements = parseRequirements(input.specs)
   const names = requirements.map(requirement => requirement.name)
   const cycle = findCycle(input.tasks)
+  const unnamed = input.tasks.filter(task => namedRequirements(task, names).length === 0)
+  const bare = input.tasks.filter(task => !ACCEPTANCE_LINE.test(task.description) && !ACCEPTANCE_HEADING.test(planSection(input.planMd, task.label)))
   return [
     validateCheck(input.validate),
     check('scenarios', requirements.filter(r => r.scenarios.length === 0).map(r => `${r.name} has no scenario`), `${requirements.length} requirement(s) with scenarios`),
-    check('coverage', input.tasks.filter(task => namedRequirements(task, names).length === 0).map(task => `${task.label} names no requirement`), 'every task names a requirement'),
+    check('coverage', unnamed.map(task => `${task.label} names no requirement`), 'every task names a requirement', unnamed.map(task => task.label)),
     check('cycles', cycle === undefined ? [] : [`cycle: ${cycle.join(' → ')}`], 'no dependency cycle'),
     check('size', sizeFailures(input.tasks), 'task and group sizes within limits'),
-    check('acceptance', input.tasks
-      .filter(task => !ACCEPTANCE_LINE.test(task.description) && !ACCEPTANCE_HEADING.test(planSection(input.planMd, task.label)))
-      .map(task => `${task.label} has no acceptance criteria`), 'every task has acceptance criteria'),
+    check('acceptance', bare.map(task => `${task.label} has no acceptance criteria`), 'every task has acceptance criteria', bare.map(task => task.label)),
   ]
 }

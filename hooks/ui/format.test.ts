@@ -4,7 +4,8 @@ import type { EventBody } from '../domain/events.ts'
 import { project } from '../domain/project.ts'
 import { evs, loaded, parsed } from '../testing/factories.ts'
 import { filterLabel, nextFilter, visibleTasks } from './filter.ts'
-import { cardLines, cardRows, formatElapsed, formatTokens, headerLine, headerRuler, heartbeat, keyLabel, keyed, progressBar, stepper } from './format.ts'
+import { cardLines, cardRows, formatElapsed, formatTokens, headerLine, headerRuler, heartbeat, keyLabel, keyed, progressBar, readinessFailureLine, stepper } from './format.ts'
+import type { ReadinessCheck } from '../plan/types.ts'
 import { THEME, roleColor } from './theme.ts'
 
 const started = (taskId: string, agentId: string, phase: 'code' | 'review' | 'refactor' = 'code'): EventBody => ({
@@ -174,4 +175,44 @@ test('a hotkey button label leads with its key in brackets', () => {
   expect(keyLabel('d', 'draft next')).toBe('[d] draft next')
   expect(keyLabel('1', 'A')).toBe('[1] A')
   expect(keyed('c', 'comment')).toEqual({ hotkey: 'c', label: '[c] comment' })
+})
+
+const failing = (id: ReadinessCheck['id'], failures: readonly string[], subjects?: readonly string[]): ReadinessCheck =>
+  ({ id, ok: false, detail: failures.join('; '), failures, ...(subjects === undefined ? {} : { subjects }) })
+const labels = (count: number): string[] => Array.from({ length: count }, (_, index) => `1.${index + 1}`)
+
+test('a task-wide acceptance failure is one line with the count and the first three tasks', () => {
+  const check = failing('acceptance', labels(30).map(label => `${label} has no acceptance criteria`), labels(30))
+  expect(readinessFailureLine(check)).toBe('✗ acceptance: 30 tasks missing (1.1, 1.2, 1.3, …)')
+})
+
+test('a task-wide coverage failure names the tasks that name no requirement', () => {
+  const check = failing('coverage', labels(30).map(label => `${label} names no requirement`), labels(30))
+  expect(readinessFailureLine(check)).toBe('✗ coverage: 30 tasks name no requirement (1.1, 1.2, 1.3, …)')
+})
+
+test('three or fewer failing tasks list them all without an ellipsis', () => {
+  const check = failing('acceptance', ['1.1 has no acceptance criteria', '1.2 has no acceptance criteria'], ['1.1', '1.2'])
+  expect(readinessFailureLine(check)).toBe('✗ acceptance: 2 tasks missing (1.1, 1.2)')
+})
+
+test('a single failure shows just that failure', () => {
+  expect(readinessFailureLine(failing('acceptance', ['1.1 has no acceptance criteria'], ['1.1']))).toBe('✗ acceptance: 1.1 has no acceptance criteria')
+  expect(readinessFailureLine(failing('cycles', ['cycle: 1.1 → 1.2 → 1.1']))).toBe('✗ cycles: cycle: 1.1 → 1.2 → 1.1')
+})
+
+test('other checks show the count and the first three details, each truncated', () => {
+  const long = `Requirement ${'x'.repeat(120)} has no scenario`
+  const line = readinessFailureLine(failing('scenarios', [long, 'B has no scenario', 'C has no scenario', 'D has no scenario']))
+  expect(line.startsWith('✗ scenarios: 4 failures · Requirement x')).toBe(true)
+  expect(line).toContain('B has no scenario · C has no scenario')
+  expect(line).not.toContain('D has no scenario')
+  expect(line.endsWith(' · …')).toBe(true)
+  expect(line).toContain('…')
+  expect(line.length).toBeLessThan(260)
+})
+
+test('a check persisted without failures falls back to its detail, truncated', () => {
+  expect(readinessFailureLine({ id: 'validate', ok: false, detail: 'broken' })).toBe('✗ validate: broken')
+  expect(readinessFailureLine({ id: 'validate', ok: false, detail: 'y'.repeat(300) }).length).toBeLessThanOrEqual(120)
 })

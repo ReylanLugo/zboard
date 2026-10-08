@@ -23,18 +23,18 @@ test('every check passes for a well-formed change', () => {
 
 test('coverage names the task that names no requirement', () => {
   const text = `${GOOD}\n## 2. More\n\n- [ ] 2.1 Export CSV headers\n  Acceptance: x\n- [ ] 2.2 Import CSV errors\n  Acceptance: x\n- [ ] 2.3 Unrelated cleanup\n  Acceptance: x\n`
-  expect(byId(readinessChecks({ validate: valid, specs, tasks: tasksOf(text) })).coverage).toEqual({ id: 'coverage', ok: false, detail: '2.3 names no requirement' })
+  expect(byId(readinessChecks({ validate: valid, specs, tasks: tasksOf(text) })).coverage).toEqual({ id: 'coverage', ok: false, detail: '2.3 names no requirement', failures: ['2.3 names no requirement'], subjects: ['2.3'] })
 })
 
 test('a dependency cycle fails and names both tasks', () => {
   const text = '## 1. A\n\n- [ ] 1.1 Export CSV\n  Acceptance: x\n- [ ] 1.2 Import CSV depends on 2.1\n  Acceptance: x\n\n## 2. B\n\n- [ ] 2.1 Export CSV depends on 1.2\n  Acceptance: x\n'
   expect(findCycle(tasksOf(text))).toEqual(['1.2', '2.1', '1.2'])
-  expect(byId(readinessChecks({ validate: valid, specs, tasks: tasksOf(text) })).cycles).toEqual({ id: 'cycles', ok: false, detail: 'cycle: 1.2 → 2.1 → 1.2' })
+  expect(byId(readinessChecks({ validate: valid, specs, tasks: tasksOf(text) })).cycles).toEqual({ id: 'cycles', ok: false, detail: 'cycle: 1.2 → 2.1 → 1.2', failures: ['cycle: 1.2 → 2.1 → 1.2'] })
 })
 
 test('a requirement without a scenario fails scenarios and is named', () => {
   const spec = { path: 'openspec/changes/a/specs/del/spec.md', text: '## ADDED Requirements\n\n### Requirement: Delete CSV\nThe system SHALL delete.\n' }
-  expect(byId(readinessChecks({ validate: valid, specs: [...specs, spec], tasks: tasksOf(GOOD) })).scenarios).toEqual({ id: 'scenarios', ok: false, detail: 'Delete CSV has no scenario' })
+  expect(byId(readinessChecks({ validate: valid, specs: [...specs, spec], tasks: tasksOf(GOOD) })).scenarios).toEqual({ id: 'scenarios', ok: false, detail: 'Delete CSV has no scenario', failures: ['Delete CSV has no scenario'] })
 })
 
 test('size limits task text and group length', () => {
@@ -48,7 +48,7 @@ test('acceptance comes from tasks.md or from the task section of plan.md', () =>
   const bare = '## 1. Core\n\n- [ ] 1.1 Export CSV writer\n- [ ] 1.2 Import CSV reader\n'
   const plan = '# Plan\n\n### Task 1.1: Writer\n\n**Acceptance:** a file is written\n\n### Task 1.2: Reader\n\nNo criteria here.\n'
   expect(byId(readinessChecks({ validate: valid, specs, tasks: tasksOf(bare), planMd: plan })).acceptance)
-    .toEqual({ id: 'acceptance', ok: false, detail: '1.2 has no acceptance criteria' })
+    .toEqual({ id: 'acceptance', ok: false, detail: '1.2 has no acceptance criteria', failures: ['1.2 has no acceptance criteria'], subjects: ['1.2'] })
 })
 
 test('a failing validation passes its output through', () => {

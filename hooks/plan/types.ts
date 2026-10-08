@@ -47,6 +47,10 @@ export interface ReadinessCheck {
   readonly id: ReadinessId
   readonly ok: boolean
   readonly detail: string
+  /** Each failure on its own; absent on checks persisted before it existed (then `detail` is all there is). */
+  readonly failures?: readonly string[]
+  /** Task labels behind a coverage or acceptance failure, one per task. */
+  readonly subjects?: readonly string[]
 }
 
 /** What one refresh learned about one change. */

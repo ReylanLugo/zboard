@@ -119,6 +119,19 @@ for (const surface of SURFACES) {
     await ui.unmount()
   })
 
+  test(`${surface}: many failing tasks read as one short line per check`, { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+    const w = installWorld(on)
+    scriptOpenspec(w)
+    const bare = Array.from({ length: 30 }, (_, index) => `- [ ] 1.${index + 1} Task ${index + 1}\n`).join('')
+    seedChange(w, 'a', { ...READY_FILES, 'tasks.md': `## 1. Core\n\n${bare}` })
+    await boot($)
+    await zboard($, 'changes a')
+    const ui = await mountPane($, surface, 'zboard-changes')
+    expect((await ui.find({ key: 'check:coverage' }))?.text).toBe('✗ coverage: 30 tasks name no requirement (1.1, 1.2, 1.3, …)')
+    expect((await ui.find({ key: 'check:acceptance' }))?.text).toBe('✗ acceptance: 30 tasks missing (1.1, 1.2, 1.3, …)')
+    await ui.unmount()
+  })
+
   test(`${surface}: an artifact over the Markdown limit is clipped with a note instead of blanking the pane`, { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
     const w = installWorld(on)
     scriptOpenspec(w)

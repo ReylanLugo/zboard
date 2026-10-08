@@ -51,7 +51,7 @@ test('readiness is computed once per fingerprint and an uncovered new task drops
   w.files.set('/repo/openspec/changes/a/tasks.md', `${READY_TASKS}- [ ] 1.2 Polish the output\n  Acceptance: x\n`)
   const board = await refreshChange(io, 'a')
   expect(validations(w.runs)).toBe(2)
-  expect(board.changes.a?.readiness.find(check => check.id === 'coverage')).toEqual({ id: 'coverage', ok: false, detail: '1.2 names no requirement' })
+  expect(board.changes.a?.readiness.find(check => check.id === 'coverage')).toEqual({ id: 'coverage', ok: false, detail: '1.2 names no requirement', failures: ['1.2 names no requirement'], subjects: ['1.2'] })
   expect(board.changes.a?.stage).toBe('authoring')
 })
 
