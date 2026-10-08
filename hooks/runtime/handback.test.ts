@@ -5,7 +5,7 @@ import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
 
 import { scriptOpenspec } from '../testing/openspec.ts'
 import { mountPane } from '../testing/ui.ts'
-import { HANDBACK_TOOL, installWorld, worldIo } from '../testing/world.ts'
+import { HANDBACK_TOOL, handbackRow, installWorld, worldIo } from '../testing/world.ts'
 import { ANSWERS, boot, json, lastAgent, scriptGit, setupDemo, stopAgent, stopAgentWithText, zboard } from '../testing/zboard.ts'
 import { HANDBACK_CAP, handbackNote, stopAnswer, withHandback, withoutHandback } from './handback.ts'
 
@@ -79,5 +79,17 @@ test('a pipeline phase still completes from an agent\'s final text', { timeoutMs
   await boot($)
   await zboard($, 'run demo')
   await stopAgentWithText($, w, lastAgent(w), ANSWERS.research)
+  expect(w.spawns.map(spawn => spawn.subagentType)).toEqual(['zboard:researcher', 'zboard:planner'])
+})
+
+test('a hand-back zboard never saw as a tool call is read from the agent\'s transcript at its stop', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+  const w = installWorld(on)
+  setupDemo(w)
+  await boot($)
+  await zboard($, 'run demo')
+  const agentId = lastAgent(w)
+  w.transcripts.set(agentId, [handbackRow('an earlier report'), handbackRow(ANSWERS.research)])
+  await $.classic.SubagentStop({ stop_hook_active: false, agent_id: agentId, agent_transcript_path: `/t/${agentId}.jsonl`, agent_type: 'zboard:researcher' })
+  await w.clock.advance(0)
   expect(w.spawns.map(spawn => spawn.subagentType)).toEqual(['zboard:researcher', 'zboard:planner'])
 })

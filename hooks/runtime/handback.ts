@@ -1,7 +1,9 @@
+import type { SessionMessage } from 'claude-code'
+
 import { runOf, taskOfAgent } from '../domain/project.ts'
 import { changeOfAgent } from '../plan/plan-project.ts'
 import type { Handback, Io } from './io.ts'
-import { readBoard } from './log-store.ts'
+import { message, readBoard } from './log-store.ts'
 import { readPlan } from './plan-store.ts'
 
 // A background subagent reports through the engine's SubagentHandback tool and
@@ -52,8 +54,30 @@ export async function takeHandback(io: Io, agentId: string): Promise<string | un
 const nonBlank = (text: string | undefined): string | undefined =>
   text === undefined || text.trim() === '' ? undefined : text
 
-/** An agent's answer at its stop: its final text, else the report it handed back (taken either way). */
+const handbackIn = (row: SessionMessage): string | undefined => {
+  const use = [...(row.toolUses ?? [])].reverse().find(entry => entry.tool === HANDBACK_TOOL && typeof entry.input?.message === 'string')
+  return use === undefined ? undefined : String(use.input.message)
+}
+
+/**
+ * The last report a zboard agent handed back, read from its conversation: the
+ * engine may run a zboard-spawned agent's tool calls without zboard's hooks, so
+ * the kept copy can be missing. Unreadable messages read as no report.
+ */
+export async function reportFromMessages(io: Io, agentId: string): Promise<string | undefined> {
+  if ((await roleOfAgent(io, agentId)) === undefined) return undefined
+  try {
+    const rows = await io.session.messages({ agentId })
+    if (!Array.isArray(rows)) return undefined
+    return [...rows].reverse().map(handbackIn).find(found => found !== undefined)
+  } catch (error) {
+    io.ui.debug(`zboard: the messages of ${agentId} were unreadable: ${message(error)}`)
+    return undefined
+  }
+}
+
+/** An agent's answer at its stop: its final text, else the report it handed back (the kept copy is taken either way). */
 export async function stopAnswer(io: Io, agentId: string, text: string | undefined): Promise<string | undefined> {
   const kept = await takeHandback(io, agentId)
-  return nonBlank(text) ?? kept
+  return nonBlank(text) ?? kept ?? (await reportFromMessages(io, agentId))
 }
