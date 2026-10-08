@@ -61,8 +61,8 @@ test('the drafter runs with the model and effort from .zboard/config.json', { ti
   const io = worldIo(w)
   await refreshChange(io, 'a')
   await draftNext(io, ctx, 'a')
-  expect(w.spawns[0]?.model).toBe('claude-sonnet-5-5')
-  expect(w.agentSpecs.get('drafter')).toMatchObject({ effort: 'medium' })
+  expect(w.spawns).toHaveLength(1)
+  expect(w.agentSpecs.get('drafter')).toMatchObject({ model: 'claude-sonnet-5-5', effort: 'medium' })
 })
 
 test('a comment reaches the drafter as data and comes back as a per-file diff proposal', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {

@@ -22,12 +22,13 @@ test('registerPlanAgentTypes registers the five plan types', { timeoutMs: PLUGIN
   expect([...w.agentSpecs.keys()]).toEqual(['brainstormer', 'drafter', 'explainer', 'critic', 'judge'])
 })
 
-test('spawnPlanRole re-registers the role with its effort, then spawns zboard:<role> with the model', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+test('spawnPlanRole re-registers the role with its model and effort, then spawns zboard:<role> without a model argument', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   const out = await spawnPlanRole(worldIo(w), { role: 'drafter', prompt: 'draft', description: 'zboard drafter for a', model: 'claude-sonnet-5-5', effort: 'medium' })
   expect(out).toEqual({ agentId: 'agent-1', model: 'claude-sonnet-5-5' })
-  expect(w.agentSpecs.get('drafter')).toMatchObject({ effort: 'medium' })
-  expect(w.spawns[0]).toMatchObject({ subagentType: 'zboard:drafter', prompt: 'draft', model: 'claude-sonnet-5-5' })
+  expect(w.agentSpecs.get('drafter')).toMatchObject({ model: 'claude-sonnet-5-5', effort: 'medium' })
+  expect(w.spawns[0]).toMatchObject({ subagentType: 'zboard:drafter', prompt: 'draft' })
+  expect(w.spawns[0]).not.toHaveProperty('model')
 })
 
 test('the plan agent types are hidden from the model', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {

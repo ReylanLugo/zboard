@@ -60,8 +60,8 @@ test('with no configuration the researcher runs on sonnet 5.5 at medium effort',
   setupDemo(w)
   await boot($)
   await zboard($, 'run demo')
-  expect(w.spawns[0]?.model).toBe('claude-sonnet-5-5')
-  expect(w.agentSpecs.get('researcher')).toMatchObject({ effort: 'medium' })
+  expect(w.spawns).toHaveLength(1)
+  expect(w.agentSpecs.get('researcher')).toMatchObject({ model: 'claude-sonnet-5-5', effort: 'medium' })
   expect((await status($)).tasks[0]?.agents[0]).toMatchObject({ agentType: 'zboard:researcher', model: 'claude-sonnet-5-5', effort: 'medium' })
 })
 
@@ -70,8 +70,8 @@ test('a changed global picker is used by the next spawn', { timeoutMs: PLUGIN_TE
   setupDemo(w)
   await boot($)
   await zboard($, 'run demo')
-  expect(w.spawns[0]?.model).toBe('claude-opus-5-5')
-  expect(w.agentSpecs.get('researcher')).toMatchObject({ effort: 'max' })
+  expect(w.spawns).toHaveLength(1)
+  expect(w.agentSpecs.get('researcher')).toMatchObject({ model: 'claude-opus-5-5', effort: 'max' })
 })
 
 test('a malformed project config warns and the board keeps running', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {

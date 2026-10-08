@@ -37,13 +37,14 @@ test('registerAgentTypes registers the six zboard types', { timeoutMs: PLUGIN_TE
   expect([...w.agentSpecs.keys()]).toEqual(['researcher', 'planner', 'tdd', 'implementer', 'reviewer', 'refactorer'])
 })
 
-test('spawnRole re-registers the role with its effort, then spawns with the model', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+test('spawnRole re-registers the role with its model and effort, then spawns without a model argument', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   expect(await ((($: Io) => spawnRole($, {
   role: 'implementer', prompt: 'do it', description: '2.1 code', model: 'claude-opus-5-5', effort: 'high',
 })))(worldIo(w))).toEqual({ agentId: 'agent-1', model: 'claude-opus-5-5' })
-  expect(w.agentSpecs.get('implementer')).toMatchObject({ effort: 'high' })
-  expect(w.spawns[0]).toMatchObject({ subagentType: 'zboard:implementer', prompt: 'do it', model: 'claude-opus-5-5' })
+  expect(w.agentSpecs.get('implementer')).toMatchObject({ model: 'claude-opus-5-5', effort: 'high' })
+  expect(w.spawns[0]).toMatchObject({ subagentType: 'zboard:implementer', prompt: 'do it' })
+  expect(w.spawns[0]).not.toHaveProperty('model')
 })
 
 test('a denied spawn is reported as a deny', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {

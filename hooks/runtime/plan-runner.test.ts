@@ -45,8 +45,8 @@ test('the spawn uses the resolved model and effort', { timeoutMs: PLUGIN_TEST_TI
   useFakeCritique()
   w.files.set('/repo/.zboard/config.json', '{"agents":{"critic":{"model":"sonnet 5.5","effort":"medium"}}}')
   await startJob(worldIo(w), ctx, 'a', { kind: 'critique' })
-  expect(w.spawns[0]).toMatchObject({ subagentType: 'zboard:critic', model: 'claude-sonnet-5-5', prompt: 'critique a' })
-  expect(w.agentSpecs.get('critic')).toMatchObject({ effort: 'medium' })
+  expect(w.spawns[0]).toMatchObject({ subagentType: 'zboard:critic', prompt: 'critique a' })
+  expect(w.agentSpecs.get('critic')).toMatchObject({ model: 'claude-sonnet-5-5', effort: 'medium' })
   expect((await readPlan(worldIo(w))).changes.a?.activeAgent).toMatchObject({ agentId: 'agent-1', role: 'critic', attempt: 1, model: 'sonnet 5.5' })
 })
 

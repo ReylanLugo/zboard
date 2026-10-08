@@ -23,14 +23,20 @@ export type SpawnOutcome = { readonly agentId: string; readonly model: string } 
 const isReadOnly = (role: Role): boolean =>
   READ_ONLY_PHASES.some(phase => ROLE_OF[phase] === role)
 
-export function agentSpec(role: Role, effort?: string): AgentSpecInput {
+/** The definition's model and effort apply to the spawn: the Agent tool's own `model` takes only aliases, never a full id. */
+const choiceOf = (effort?: string, model?: string): Partial<AgentSpecInput> => ({
+  ...(model === undefined ? {} : { model }),
+  ...(effort === undefined ? {} : { effort }),
+})
+
+export function agentSpec(role: Role, effort?: string, model?: string): AgentSpecInput {
   return {
     name: role,
     description: ROLE_DESCRIPTIONS[role],
     prompt: SYSTEM_PROMPTS[role],
     background: true,
     ...(isReadOnly(role) ? { disallowedTools: ['Edit', 'Write', 'NotebookEdit'] } : {}),
-    ...(effort === undefined ? {} : { effort }),
+    ...choiceOf(effort, model),
   }
 }
 
@@ -49,14 +55,14 @@ export const PLAN_DISALLOWED: readonly string[] = [
   'mcp__engram__mem_save',
 ]
 
-export function planAgentSpec(role: PlanRole, effort?: string): AgentSpecInput {
+export function planAgentSpec(role: PlanRole, effort?: string, model?: string): AgentSpecInput {
   return {
     name: role,
     description: PLAN_DESCRIPTIONS[role],
     prompt: PLAN_SYSTEM_PROMPTS[role],
     background: true,
     disallowedTools: [...PLAN_DISALLOWED],
-    ...(effort === undefined ? {} : { effort }),
+    ...choiceOf(effort, model),
   }
 }
 
@@ -66,7 +72,10 @@ export async function registerPlanAgentTypes(io: { readonly agent: Pick<Io['agen
 
 const locks = new Map<string, Promise<unknown>>()
 
-/** Effort is a property of the agent type, so a type is re-registered right before its spawn, one spawn per type at a time. */
+/**
+ * Model and effort are properties of the agent type, so a type is re-registered right before its spawn,
+ * one spawn per type at a time; the spawn itself names no model, so the definition's full id applies.
+ */
 async function spawnTyped(io: Io, spec: AgentSpecInput, args: AgentSpawnArgs): Promise<SpawnOutcome> {
   const previous = locks.get(spec.name) ?? Promise.resolve()
   const run = previous.catch(() => undefined).then(async () => {
@@ -80,7 +89,7 @@ async function spawnTyped(io: Io, spec: AgentSpecInput, args: AgentSpawnArgs): P
 }
 
 export const spawnRole = (io: Io, req: SpawnRequest): Promise<SpawnOutcome> =>
-  spawnTyped(io, agentSpec(req.role, req.effort), { subagentType: agentTypeOf(req.role), prompt: req.prompt, description: req.description, model: req.model })
+  spawnTyped(io, agentSpec(req.role, req.effort, req.model), { subagentType: agentTypeOf(req.role), prompt: req.prompt, description: req.description })
 
 export interface PlanSpawnRequest {
   readonly role: PlanRole
@@ -91,4 +100,4 @@ export interface PlanSpawnRequest {
 }
 
 export const spawnPlanRole = (io: Io, req: PlanSpawnRequest): Promise<SpawnOutcome> =>
-  spawnTyped(io, planAgentSpec(req.role, req.effort), { subagentType: `${AGENT_PREFIX}:${req.role}`, prompt: req.prompt, description: req.description, model: req.model })
+  spawnTyped(io, planAgentSpec(req.role, req.effort, req.model), { subagentType: `${AGENT_PREFIX}:${req.role}`, prompt: req.prompt, description: req.description })

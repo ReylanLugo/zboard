@@ -5,7 +5,7 @@ import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
 import { parseProjectConfig } from '../domain/config.ts'
 import { emptyBoard } from '../domain/types.ts'
 import { installWorld, worldIo } from '../testing/world.ts'
-import { boot, setupDemo, taskOf, zboard } from '../testing/zboard.ts'
+import { boot, setupDemo, status, taskOf, zboard } from '../testing/zboard.ts'
 import { configLines } from './config-view.ts'
 
 test('config lines show each agent value with the level that provided it', () => {
@@ -42,8 +42,9 @@ test('/zboard set applies to the next spawn of that task only', { timeoutMs: PLU
   expect(await zboard($, 'set 1.1 implementer opus 5.5 high')).toBe('task 1.1 zboard:implementer will use opus 5.5 / high')
   await zboard($, 'run demo')
   const byTask = (id: string) => w.spawns.find(spawn => spawn.prompt.startsWith(`Task ${id}:`))
-  expect(byTask('1.1')?.model).toBe('claude-opus-5-5')
-  expect(byTask('1.2')?.model).toBe('claude-sonnet-5-5')
+  const runOf = async (id: string) => (await status($)).tasks.find(task => task.id === id)?.agents.find(run => run.agentId === byTask(id)?.agentId)
+  expect((await runOf('1.1'))?.model).toBe('claude-opus-5-5')
+  expect((await runOf('1.2'))?.model).toBe('claude-sonnet-5-5')
   expect((await taskOf($, '1.1')).overrides).toEqual({ researcher: { model: 'opus 5.5', effort: 'high' }, implementer: { model: 'opus 5.5', effort: 'high' } })
 })
 
