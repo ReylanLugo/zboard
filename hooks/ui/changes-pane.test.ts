@@ -70,7 +70,7 @@ test('the header counts the groups and shows the mirror and error state', () => 
     { type: 'PlanMirrorState', pending: true, seq: 2, at: 2 },
     { type: 'PlanError', hook: 'new change', message: 'x', seq: 3, at: 3 },
   ])
-  expect(headerText(plan)).toBe('zboard changes · 0 active · 1 drafts · 1 archived · ⚠ mirror pending · ⚠ 1 issue')
+  expect(headerText(plan)).toBe('zboard changes · 0 active · 1 draft · 1 archived · ⚠ mirror pending · ⚠ 1 issue')
 })
 
 test('/zboard run behaves exactly as before; an invalid id is refused by /zboard changes', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {

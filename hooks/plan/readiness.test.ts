@@ -56,6 +56,13 @@ test('a failing validation passes its output through', () => {
   expect(checks.validate).toEqual({ id: 'validate', ok: false, detail: 'ERROR: specs/x/spec.md missing scenario' })
 })
 
+test('a validation failing only on the no-delta issue reads "no delta spec yet", never the raw CLI text', () => {
+  const noDelta = { ok: false, detail: 'ERROR: file Change must have at least one delta. No deltas found', onlyNoDelta: true }
+  expect(byId(readinessChecks({ validate: noDelta, specs, tasks: tasksOf(GOOD) })).validate).toEqual({ id: 'validate', ok: false, detail: 'no delta spec yet' })
+  const other = { ok: false, detail: 'ERROR: specs/x/spec.md missing scenario', onlyNoDelta: false }
+  expect(byId(readinessChecks({ validate: other, specs, tasks: tasksOf(GOOD) })).validate?.detail).toBe('ERROR: specs/x/spec.md missing scenario')
+})
+
 test('CRLF specs and tasks parse to the same names and checks', () => {
   const crlf = [{ path: specs[0]?.path ?? '', text: SPEC.replace(/\n/g, '\r\n') }]
   expect(parseRequirements(crlf).map(r => r.name)).toEqual(['Export CSV', 'Import CSV'])

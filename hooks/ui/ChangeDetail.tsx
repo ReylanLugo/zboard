@@ -14,7 +14,7 @@ import { runChange } from '../runtime/plan-run.ts'
 import type { ChangesTab, ChangesUi } from '../runtime/ui-types.ts'
 import { CHANGES_TABS } from '../runtime/ui-types.ts'
 import { act, composeComment, selectArtifact, setTab } from './changes-actions.ts'
-import { defaultArtifact, historyRows, readinessLine, stepperMarks, uncoveredRequirements } from './changes-model.ts'
+import { READINESS_PENDING, defaultArtifact, historyRows, isPlanPending, readinessLine, stepperMarks, uncoveredRequirements } from './changes-model.ts'
 import { DiagramsTab } from './DiagramsTab.tsx'
 import { DiffView } from './DiffView.tsx'
 import { QaView, showsQa } from './QaView.tsx'
@@ -73,26 +73,29 @@ function Header(els: Els, rec: ChangeRecord, docs: ChangeDocs, ui: ChangesUi): R
   ]
 }
 
+/** One row that wraps between steps: each step keeps its mark and its selectable artifact together. */
 function Stepper(els: Els, io: Io, rec: ChangeRecord, ui: ChangesUi): RenderElement[] {
   const { Box, Button, Text } = els
   const target = ui.artifact ?? defaultArtifact(rec)
   const marks = stepperMarks(rec)
   return [
-    <Box key="stepper" flexDirection="row">
+    <Box key="stepper" flexDirection="row" flexWrap="wrap" columnGap={2}>
       {marks.length === 0
         ? <Text dimColor>no CLI status yet</Text>
-        : marks.map((step, index) => <Text color={artifactColor(step.mark)}>{`${index === 0 ? '' : '  '}${step.mark} ${step.id}`}</Text>)}
-    </Box>,
-    <Box key="artifacts" flexDirection="row" gap={1} flexWrap="wrap">
-      {stepperMarks(rec).map(step => (
-        <Button key={`artifact:${step.id}`} label={step.id === target ? `[${step.id}]` : step.id} plain onPress={() => void selectArtifact(io, step.id)} />
-      ))}
+        : marks.map(step => (
+          <Box key={`step:${step.id}`} flexShrink={0} gap={1}>
+            <Text color={artifactColor(step.mark)}>{step.mark}</Text>
+            <Button key={`artifact:${step.id}`} label={step.id === target ? `[${step.id}]` : step.id} plain onPress={() => void selectArtifact(io, step.id)} />
+          </Box>
+        ))}
     </Box>,
   ]
 }
 
+/** Readiness only gates Run, which needs the plan: until it is written the checks are not shown. */
 function Readiness(els: Els, rec: ChangeRecord): RenderElement[] {
   const { Box, Text } = els
+  if (isPlanPending(rec)) return [<Box key="readiness"><Text dimColor>{READINESS_PENDING}</Text></Box>]
   const isReady = rec.readiness.length > 0 && rec.readiness.every(check => check.ok)
   const color = rec.readiness.length === 0 ? THEME.steel : isReady ? THEME.moss : THEME.brick
   return [

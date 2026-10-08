@@ -63,3 +63,21 @@ export const textsIn = async (ui: KeyFinder, key: string): Promise<FoundText[]> 
   const scope = await ui.find({ key })
   return scope === undefined ? [] : texts(scope.children)
 }
+
+type ChildFinder = { find: (query: { key: string }) => Promise<{ children: unknown[] } | undefined> }
+
+const nodesOf = (children: readonly unknown[]): Node[] =>
+  children.filter((child): child is Node => typeof child === 'object' && child !== null)
+
+/**
+ * The stepper as read: one `<mark> <label>` per direct child Box, in order (the mark is the
+ * box's Text, the label its Button's), with that box's key and props (flexShrink included).
+ */
+export const stepsOf = async (ui: ChildFinder): Promise<{ key: unknown; text: string; props: Record<string, unknown> }[]> => {
+  const scope = await ui.find({ key: 'stepper' })
+  return nodesOf(scope?.children ?? []).filter(node => node.type === 'Box').map(box => {
+    const mark = descendant(box.children ?? [], 'Text')
+    const button = descendant(box.children ?? [], 'Button')
+    return { key: box.props?.key, text: `${mark === undefined ? '' : textOf(mark)} ${String(button?.props?.label ?? '')}`, props: box.props ?? {} }
+  })
+}

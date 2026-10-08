@@ -52,13 +52,15 @@ export const listIssue = (plan: PlanBoard): string | undefined => (isNotInitiali
 
 const issues = (count: number): string => `⚠ ${count} issue${count === 1 ? '' : 's'}`
 
+const drafts = (count: number): string => `${count} draft${count === 1 ? '' : 's'}`
+
 export function headerText(plan: PlanBoard): string {
   const visible = visibleChanges(plan)
   const count = (group: ChangeGroup): number => visible.filter(rec => groupOf(rec) === group).length
   const total = plan.errors.length + (listIssue(plan) === undefined ? 0 : 1)
   const state = isNotInitialized(plan)
     ? 'zboard changes · OpenSpec not initialized'
-    : `zboard changes · ${count('active')} active · ${count('drafts')} drafts · ${count('archived')} archived`
+    : `zboard changes · ${count('active')} active · ${drafts(count('drafts'))} · ${count('archived')} archived`
   return [
     state,
     ...(plan.mirrorPending ? ['⚠ mirror pending'] : []),
@@ -83,6 +85,12 @@ export function stepperMarks(rec: ChangeRecord): { readonly id: string; readonly
     mark: artifact.status === 'done' ? '●' : artifact.id === current ? '◐' : '○',
   }))
 }
+
+export const READINESS_PENDING = 'readiness · checked once the plan is written'
+
+/** The change's schema has a `plan` artifact that is not done yet. */
+export const isPlanPending = (rec: ChangeRecord): boolean =>
+  (rec.status?.artifacts ?? []).some(artifact => artifact.id === 'plan' && artifact.status !== 'done')
 
 export function readinessLine(rec: ChangeRecord): string {
   if (rec.readiness.length === 0) return 'readiness: not computed yet'

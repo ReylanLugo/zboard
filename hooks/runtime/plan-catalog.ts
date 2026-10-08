@@ -26,7 +26,9 @@ export const specFilesOf = (files: readonly ChangeFile[], id: string): ChangeFil
 
 export async function readinessOf(io: Io, id: string, files: readonly ChangeFile[]): Promise<ReadinessCheck[]> {
   const checked = await validateChange(io, id)
-  const validate = checked.ok ? { ok: checked.value.valid, detail: checked.value.output } : { ok: false, detail: checked.output }
+  const validate = checked.ok
+    ? { ok: checked.value.valid, detail: checked.value.output, onlyNoDelta: checked.value.onlyNoDelta }
+    : { ok: false, detail: checked.output }
   const planMd = files.find(file => file.path === `${changeDir(id)}/plan.md`)?.text
   return readinessChecks({ validate, specs: specFilesOf(files, id), tasks: tasksOf(files, id), planMd })
 }

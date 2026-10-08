@@ -16,6 +16,13 @@ test('the header counts one issue in the singular and two in the plural', () => 
   expect(headerText(two)).toBe('zboard changes · 0 active · 0 drafts · 0 archived · ⚠ 2 issues')
 })
 
+test('the header names one draft in the singular and several in the plural', () => {
+  const one = projectPlan([{ type: 'ChangesListed', complete: true, changes: [listing('a')], seq: 1, at: 1 }])
+  expect(headerText(one)).toBe('zboard changes · 0 active · 1 draft · 0 archived')
+  const two = projectPlan([{ type: 'ChangesListed', complete: true, changes: [listing('a'), listing('b'), listing('c', { archived: true })], seq: 1, at: 1 }])
+  expect(headerText(two)).toBe('zboard changes · 0 active · 2 drafts · 1 archived')
+})
+
 test('a folder without OpenSpec is a state, not an issue', () => {
   const plan = projectPlan([{ type: 'ChangesListed', complete: true, changes: [], error: NO_ROOT_LIST_JSON, seq: 1, at: 1 }])
   expect(headerText(plan)).toBe('zboard changes · OpenSpec not initialized')

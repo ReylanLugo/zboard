@@ -16,7 +16,8 @@ export interface Requirement {
 }
 
 export interface ReadinessInput {
-  readonly validate: { readonly ok: boolean; readonly detail: string }
+  /** `onlyNoDelta`: openspec's sole issue is the "no deltas" one, shown readably instead of the raw CLI text. */
+  readonly validate: { readonly ok: boolean; readonly detail: string; readonly onlyNoDelta?: boolean }
   readonly specs: readonly SpecFile[]
   readonly tasks: readonly ParsedTask[]
   readonly planMd?: string
@@ -105,13 +106,18 @@ function sizeFailures(tasks: readonly ParsedTask[]): string[] {
   return [...long, ...crowded]
 }
 
+export const NO_DELTA_DETAIL = 'no delta spec yet'
+
+const validateCheck = (validate: ReadinessInput['validate']): ReadinessCheck =>
+  (validate.onlyNoDelta === true ? { id: 'validate', ok: false, detail: NO_DELTA_DETAIL } : { id: 'validate', ok: validate.ok, detail: validate.detail })
+
 /** D11: six mechanical, free checks; each failure names what failed. */
 export function readinessChecks(input: ReadinessInput): ReadinessCheck[] {
   const requirements = parseRequirements(input.specs)
   const names = requirements.map(requirement => requirement.name)
   const cycle = findCycle(input.tasks)
   return [
-    { id: 'validate', ok: input.validate.ok, detail: input.validate.detail },
+    validateCheck(input.validate),
     check('scenarios', requirements.filter(r => r.scenarios.length === 0).map(r => `${r.name} has no scenario`), `${requirements.length} requirement(s) with scenarios`),
     check('coverage', input.tasks.filter(task => namedRequirements(task, names).length === 0).map(task => `${task.label} names no requirement`), 'every task names a requirement'),
     check('cycles', cycle === undefined ? [] : [`cycle: ${cycle.join(' → ')}`], 'no dependency cycle'),
