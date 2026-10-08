@@ -67,12 +67,24 @@ function accepted(rec: ChangeRecord, e: Of<'ProposalAccepted'>): ChangeRecord {
   return { ...rec, proposal: undefined, revisions: [...rec.revisions, e.revision], planGroups: groups, verify }
 }
 
+/** A role's agent that started or finished well makes that role's earlier spawn and agent errors stale. */
+const withoutRoleErrors = (rec: ChangeRecord, role: string): ChangeRecord => {
+  const stale = new Set([`spawn.${role}`, `agent.${role}`])
+  return { ...rec, errors: rec.errors.filter(error => !stale.has(error.hook)) }
+}
+
 function stopped(rec: ChangeRecord, e: Of<'PlanAgentStopped'>): ChangeRecord {
   const active = rec.activeAgent
   if (active?.agentId !== e.agentId) return rec
   const isRetryable = e.outcome === 'interrupted' || (e.outcome === 'failed' && active.attempt >= PLAN_MAX_ATTEMPTS)
-  return { ...rec, activeAgent: undefined, retryable: isRetryable ? active : undefined }
+  const settled: ChangeRecord = { ...rec, activeAgent: undefined, retryable: isRetryable ? active : undefined }
+  return e.outcome === 'ok' ? withoutRoleErrors(settled, active.role) : settled
 }
+
+const started = (rec: ChangeRecord, e: Of<'PlanAgentStarted'>): ChangeRecord =>
+  rec.activeAgent === undefined
+    ? withoutRoleErrors({ ...rec, activeAgent: e.agent, retryable: undefined }, e.agent.role)
+    : refuse(rec, e.at, 'agent', `an agent is already running for ${e.changeId}`)
 
 function verified(rec: ChangeRecord, e: Of<'VerifyRecorded'>): ChangeRecord {
   const scope = new Set(e.scope)
@@ -143,8 +155,7 @@ export function applyPlanEvent(board: PlanBoard, e: PlanEvent): PlanBoard {
     case 'ChangeArchived':
       return withRecord(board, e.changeId, rec => ({ ...rec, archiving: false, archived: true }))
     case 'PlanAgentStarted':
-      return withRecord(board, e.changeId, rec =>
-        rec.activeAgent === undefined ? { ...rec, activeAgent: e.agent, retryable: undefined } : refuse(rec, e.at, 'agent', `an agent is already running for ${e.changeId}`))
+      return withRecord(board, e.changeId, rec => started(rec, e))
     case 'PlanAgentStopped':
       return withRecord(board, e.changeId, rec => stopped(rec, e))
     case 'PlanError':

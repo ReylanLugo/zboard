@@ -45,6 +45,23 @@ for (const surface of SURFACES) {
     await ui.unmount()
   })
 
+  test(`${surface}: a failed spawn's error line goes away once the role's agent starts`, { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+    const w = installWorld(on)
+    scriptOpenspec(w)
+    seedChange(w, 'a', { 'brainstorm.md': 'b' })
+    await boot($)
+    await zboard($, 'changes a')
+    const ui = await mountPane($, surface, 'zboard-changes')
+    w.spawnDeny = 'agent type not found'
+    await ui.press({ key: 'draft' })
+    expect((await ui.find({ key: 'change-error:0' }))?.text).toContain('agent type not found')
+    w.spawnDeny = undefined
+    await ui.press({ key: 'draft' })
+    expect(w.spawns).toHaveLength(1)
+    expect(await ui.find({ key: 'change-error:0' })).toBeUndefined()
+    await ui.unmount()
+  })
+
   test(`${surface}: the change detail names the schema the change uses`, { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
     const w = installWorld(on)
     scriptOpenspec(w)

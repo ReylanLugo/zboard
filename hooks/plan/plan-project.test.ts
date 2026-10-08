@@ -160,3 +160,32 @@ test('folding never mutates the events or the previous board', () => {
   const before = deepFreeze(projectPlan(events.slice(0, 100)))
   expect(() => projectPlan(events.slice(100), before)).not.toThrow()
 })
+
+test('a role\'s agent starting drops that change\'s earlier spawn and agent errors of the role only', () => {
+  const board = projectPlan(evs([
+    { type: 'PlanError', changeId: 'a', hook: 'spawn.explainer', message: 'denied' },
+    { type: 'PlanError', changeId: 'a', hook: 'agent.explainer', message: 'explainer gave no valid answer twice' },
+    { type: 'PlanError', changeId: 'a', hook: 'spawn.critic', message: 'denied' },
+    { type: 'PlanError', changeId: 'a', hook: 'prompt.explain', message: 'unreadable' },
+    { type: 'PlanError', changeId: 'b', hook: 'spawn.explainer', message: 'denied' },
+    { type: 'PlanAgentStarted', changeId: 'a', agent: agent('x1') },
+  ]))
+  expect(board.changes.a?.errors.map(error => error.hook)).toEqual(['spawn.critic', 'prompt.explain'])
+  expect(board.changes.b?.errors.map(error => error.hook)).toEqual(['spawn.explainer'])
+})
+
+test('a role\'s agent stopping ok drops that change\'s errors of the role; a failed stop keeps them', () => {
+  const started = (attempt: number): PlanEventBody[] => [{ type: 'PlanAgentStarted', changeId: 'a', agent: agent(`x${attempt}`, { kind: 'explain' }, 'explainer', attempt) }]
+  const failed = projectPlan(evs([
+    ...started(1),
+    { type: 'PlanError', changeId: 'a', hook: 'agent.explainer', message: 'an earlier run failed' },
+    { type: 'PlanAgentStopped', changeId: 'a', agentId: 'x1', outcome: 'failed' },
+  ]))
+  expect(failed.changes.a?.errors.map(error => error.hook)).toEqual(['agent.explainer'])
+  const ok = projectPlan(evs([
+    ...started(1),
+    { type: 'PlanError', changeId: 'a', hook: 'agent.explainer', message: 'an earlier run failed' },
+    { type: 'PlanAgentStopped', changeId: 'a', agentId: 'x1', outcome: 'ok' },
+  ]))
+  expect(ok.changes.a?.errors).toEqual([])
+})
