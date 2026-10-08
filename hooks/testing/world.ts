@@ -365,12 +365,31 @@ function ioClock(on: On, timers: IoTimer[]): MockClock {
 /** The kit hands the hook beneath the Agent tool's raw parameters (`subagent_type`); direct test calls use `subagentType`. */
 type SpawnArgs = { readonly prompt: string; readonly subagentType?: string; readonly subagent_type?: string; readonly model?: string }
 
+/** The only values the Agent tool's `model` parameter accepts; a full id fails its input validation. */
+export const AGENT_TOOL_MODELS: readonly string[] = ['sonnet', 'opus', 'haiku', 'fable']
+
+/** The engine's answer to an Agent call whose `model` is not one of the tool's enum values (its issues pretty-printed, as live). */
+export const modelValidationError = (model: string): string =>
+  `<tool_use_error>InputValidationError: ${JSON.stringify([{
+    code: 'invalid_enum_value',
+    path: ['model'],
+    message: `Invalid enum value. Expected ${AGENT_TOOL_MODELS.map(alias => `'${alias}'`).join(' | ')}, received '${model}'`,
+  }], null, 2)}</tool_use_error>`
+
+/** Without a `model` argument the agent runs on its registered definition's model. */
+const definitionModel = (w: World, subagentType: string): string | undefined => {
+  const model = w.agentSpecs.get(subagentType.slice(subagentType.indexOf(':') + 1))?.model
+  return typeof model === 'string' ? model : undefined
+}
+
 const agentSpawn = (w: World, e: SpawnArgs): AgentSpawnResult => {
   if (w.spawnDeny !== undefined) return { deny: w.spawnDeny } as AgentSpawnResult
+  if (e.model !== undefined && !AGENT_TOOL_MODELS.includes(e.model)) return { deny: modelValidationError(e.model) } as AgentSpawnResult
   const agentId = `agent-${w.spawns.length + 1}`
-  w.spawns.push({ agentId, subagentType: e.subagentType ?? e.subagent_type ?? '', prompt: e.prompt, model: e.model })
+  const subagentType = e.subagentType ?? e.subagent_type ?? ''
+  w.spawns.push({ agentId, subagentType, prompt: e.prompt, ...(e.model === undefined ? {} : { model: e.model }) })
   w.alive.add(agentId)
-  return { model: e.model ?? 'inherit', agentId } as AgentSpawnResult
+  return { model: e.model ?? definitionModel(w, subagentType) ?? 'inherit', agentId } as AgentSpawnResult
 }
 
 const agentList = (w: World): AgentInfo[] =>

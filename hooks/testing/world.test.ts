@@ -30,6 +30,17 @@ test('world: spawn mints agent ids and honours spawnDeny', { timeoutMs: PLUGIN_T
   expect(second.deny).toBe('no agents today')
 })
 
+test('world: the Agent tool accepts only model aliases and otherwise runs the definition model', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+  const w = installWorld(on)
+  const rejected = await $.agent.spawn({ ...spawnInput('p', 'zboard:drafter'), model: 'claude-opus-5-5' })
+  expect(rejected.deny).toContain('<tool_use_error>InputValidationError:')
+  expect(rejected.deny).toContain("received 'claude-opus-5-5'")
+  expect(w.spawns).toHaveLength(0)
+  expect((await $.agent.spawn({ ...spawnInput('p', 'zboard:drafter'), model: 'opus' })).model).toBe('opus')
+  await worldIo(w).agent.register({ name: 'critic', description: 'd', prompt: 'p', model: 'claude-sonnet-5-5' })
+  expect(await worldIo(w).agent.spawn({ prompt: 'p', subagentType: 'zboard:critic' })).toMatchObject({ model: 'claude-sonnet-5-5', agentId: 'agent-2' })
+})
+
 test('world: worldIo answers adapter code as the hooks answer the plugin', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async (_$, on) => {
   const w = installWorld(on)
   w.rules.push({ match: argvIs('git', 'status'), answer: { exitCode: 0, stdout: 'clean' } })
