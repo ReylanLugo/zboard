@@ -21,7 +21,7 @@ for (const surface of SURFACES) {
     await boot($)
     await zboard($, 'run demo')
     const ui = await mountPane($, surface)
-    expect((await ui.find({ key: 'header' }))?.text).toBe('zboard · demo ░░░░░ 0/1 · 1 agent · 0 decisions · 0 tok [v] Kanban')
+    expect((await ui.find({ key: 'header' }))?.text).toMatch(/^├─ zboard · demo ─+ 0\/1 ░░░░░ ─┤  ◐ 1 running · 0 decisions · 0 tok · \[v\] Kanban$/)
     expect(await ui.find({ text: 'Running (1)' })).toBeDefined()
     expect(await labelOf(ui, 'card:1.1')).toBe('1.1 Parse tasks')
     expect(await ui.find({ text: /zboard:researcher sonnet 5\.5\/medium/ })).toBeDefined()

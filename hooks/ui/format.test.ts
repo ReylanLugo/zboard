@@ -4,7 +4,8 @@ import type { EventBody } from '../domain/events.ts'
 import { project } from '../domain/project.ts'
 import { evs, loaded, parsed } from '../testing/factories.ts'
 import { filterLabel, nextFilter, visibleTasks } from './filter.ts'
-import { cardLines, formatElapsed, formatTokens, headerLine, heartbeat, progressBar, stepper } from './format.ts'
+import { cardLines, cardRows, formatElapsed, formatTokens, headerLine, headerRuler, heartbeat, progressBar, stepper } from './format.ts'
+import { THEME, roleColor } from './theme.ts'
 
 const started = (taskId: string, agentId: string, phase: 'code' | 'review' | 'refactor' = 'code'): EventBody => ({
   type: 'PhaseStarted', taskId, phase, attempt: 1, agentId,
@@ -23,6 +24,58 @@ test('the header reads exactly as the spec shows', () => {
     { type: 'TaskStatusChanged', taskId: '1.11', from: 'running', to: 'needs_decision', reason: 'plan too narrow' },
   ]).map(event => ({ ...event, changeId: 'zboard-v1' })))
   expect(headerLine(board, 'kanban')).toBe('zboard · zboard-v1 ▓▓▓░░ 7/12 · 3 agents · ⚠ 1 decision · 182k tok [v] Kanban')
+})
+
+const specBoard = () => project(evs([
+  { type: 'ChangeLoaded', tasks: Array.from({ length: 12 }, (_, index) => parsed(`1.${index + 1}`, { done: index < 7 })) },
+  started('1.8', 'a1'), started('1.9', 'a2'), started('1.10', 'a3'),
+  { type: 'AgentActivity', agentId: 'a1', tokens: 100_000 },
+  { type: 'AgentActivity', agentId: 'a2', tokens: 82_000 },
+  { type: 'TaskStatusChanged', taskId: '1.11', from: 'running', to: 'needs_decision', reason: 'plan too narrow' },
+]).map(event => ({ ...event, changeId: 'zboard-v1' })))
+type Ruler = ReturnType<typeof headerRuler>
+const flat = (header: Ruler) => [...header.ruler, ...header.facts]
+const joined = (header: Ruler): string => flat(header).map(segment => segment.text).join('')
+const rulerOf = (line: string): string => line.slice(0, line.indexOf('┤') + 1)
+
+test('the header ruler holds the change, progress and every count, and fits the width', () => {
+  const header = headerRuler(specBoard(), 'kanban', 120)
+  const line = joined(header)
+  const segments = flat(header)
+  expect(line).toMatch(/^├─ zboard · zboard-v1 ─+ 7\/12 ▓▓▓░░ ─┤  ◐ 3 running · ⚠ 1 decision · 182k tok · \[v\] Kanban$/)
+  expect(line.length).toBeLessThanOrEqual(120)
+  expect(line.length).toBeGreaterThan(110)
+  const colorOf = (text: string) => segments.find(segment => segment.text === text)?.color
+  expect(colorOf('├─ ')).toBe(THEME.blueprint)
+  expect(colorOf('▓▓▓')).toBe(THEME.moss)
+  expect(colorOf('░░')).toBe(THEME.steel)
+  expect(colorOf('◐ 3 running')).toBe(THEME.signal)
+  expect(colorOf('⚠ 1 decision')).toBe(THEME.brick)
+})
+
+test('a narrow header keeps the ruler within the width and the facts after it; a long change id is clipped', () => {
+  const narrow = joined(headerRuler(specBoard(), 'tree', 60))
+  expect(rulerOf(narrow).length).toBeLessThanOrEqual(60)
+  expect(narrow).toContain('7/12 ▓▓▓░░')
+  expect(narrow).toMatch(/◐ 3 running · ⚠ 1 decision · 182k tok · \[v\] Tree$/)
+  const long = project(evs([loaded(parsed('1.1'))]).map(event => ({ ...event, changeId: 'a-very-long-change-identifier-that-does-not-fit' })))
+  const clipped = rulerOf(joined(headerRuler(long, 'kanban', 40)))
+  expect(clipped.length).toBeLessThanOrEqual(40)
+  expect(clipped).toMatch(/^├─ zboard · a-very.*… ─+ 0\/1 ░░░░░ ─┤$/)
+})
+
+test('the header ruler keeps the warnings and the no-change state', () => {
+  const board = project(evs([
+    loaded(parsed('1.1')),
+    { type: 'MirrorState', pending: true },
+    { type: 'ConfigWarnings', warnings: ['a', 'b'] },
+    { type: 'ModError', hook: 'h', message: 'm' },
+  ]))
+  const header = headerRuler(board, 'swimlane', 160)
+  const segments = flat(header)
+  expect(joined(header)).toMatch(/◐ 0 running · 0 decisions · 0 tok · \[v\] Swimlanes · ⚠ mirror pending · ⚠ 2 config warnings · ✖ 1 error$/)
+  expect(segments.find(segment => segment.text === '✖ 1 error')?.color).toBe(THEME.brick)
+  expect(joined(headerRuler(project([]), 'tree', 80))).toMatch(/^├─ zboard · no change loaded ─+┤  \[v\] Tree$/)
 })
 
 test('the header appends mirror, configuration and error warnings', () => {
@@ -62,6 +115,24 @@ test('a task in review on loop 1 shows the stepper and its agent chip', () => {
     'R✓ P✓ T✓ C✓ Rv● ↺1',
     '🟢 zboard:reviewer sonnet 5.5/medium · Read · 3m12s · 12k tok',
   ])
+})
+
+test('card rows carry their colors: dim stepper, role-colored chip, signal wait, brick decision', () => {
+  const board = project(evs([
+    loaded(parsed('1.1'), parsed('1.2')),
+    started('1.1', 'r1', 'review'),
+    { type: 'TaskUpdated', taskId: '1.1', patch: { waitReason: 'waits 1.2 for auth.ts' } },
+    { type: 'TaskStatusChanged', taskId: '1.2', from: 'running', to: 'needs_decision', reason: 'plan too narrow' },
+  ]))
+  const reviewing = board.tasks['1.1']
+  const deciding = board.tasks['1.2']
+  if (reviewing === undefined || deciding === undefined) throw new Error('missing task')
+  const rows = cardRows(reviewing, 0)
+  expect(rows.map(row => row.text)).toEqual(cardLines(reviewing, 0))
+  expect(rows[0]?.dim).toBe(true)
+  expect(rows.find(row => row.text.includes('zboard:reviewer'))?.color).toBe(roleColor('reviewer'))
+  expect(rows.find(row => row.text.startsWith('⏸'))?.color).toBe(THEME.signal)
+  expect(cardRows(deciding, 0).find(row => row.text.startsWith('⚠'))?.color).toBe(THEME.brick)
 })
 
 test('heartbeat is green while active, amber after 5 idle minutes, red on error', () => {

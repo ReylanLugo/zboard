@@ -4,6 +4,7 @@ import type { Io } from '../runtime/io.ts'
 import type { Task, TaskStatus } from '../domain/types.ts'
 import type { Els, ViewProps } from './els.ts'
 import { Card } from './parts/Card.tsx'
+import { ink, statusColor } from './theme.ts'
 
 const WIDE_COLUMNS = 100
 
@@ -22,9 +23,10 @@ export function KanbanView(els: Els, io: Io, tasks: readonly Task[], props: View
     <Box key="kanban" flexDirection={isWide ? 'row' : 'column'} gap={1}>
       {COLUMNS.map(column => {
         const cards = tasks.filter(task => column.statuses.includes(task.status))
+        const color = column.statuses[0] === undefined ? undefined : statusColor(column.statuses[0])
         return (
           <Box key={`column:${column.title}`} flexDirection="column" flexGrow={1}>
-            <Text bold>{`${column.title} (${cards.length})`}</Text>
+            <Text bold {...ink(color)}>{`${column.title} (${cards.length})`}</Text>
             {cards.map(task => Card(els, io, task, props.now, task.id === props.ui.selected))}
           </Box>
         )

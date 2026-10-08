@@ -7,10 +7,12 @@ import { isolatePlan } from '../runtime/plan-store.ts'
 import { cycleFilter, cycleView, raiseSelected, select, startComment, submitComment, toggleSelectedBlock } from './actions.ts'
 import type { Els, ViewProps } from './els.ts'
 import { filterLabel, visibleTasks } from './filter.ts'
-import { headerLine } from './format.ts'
+import type { HeaderSegment } from './format.ts'
+import { headerLine, headerRuler } from './format.ts'
 import { KanbanView } from './KanbanView.tsx'
 import { SwimlaneView } from './SwimlaneView.tsx'
 import { TreeView } from './TreeView.tsx'
+import { ink } from './theme.ts'
 
 const EMPTY_HINT = 'No change loaded. Run /zboard run <change> to start.'
 const CARD_PREFIX = 'card:'
@@ -43,11 +45,28 @@ function Body(els: Els, io: Io, props: ViewProps): RenderElement {
   }
 }
 
+const segmentsOf = (els: Els, segments: readonly HeaderSegment[]): RenderElement[] => {
+  const { Text } = els
+  return segments.map(segment => <Text {...ink(segment.color)}>{segment.text}</Text>)
+}
+
+/** The header as a blueprint dimension ruler; its facts sit beside it, or wrap below on a narrow pane. */
+function Header(els: Els, props: ViewProps): RenderElement {
+  const { Box } = els
+  const header = headerRuler(props.board, props.ui.view, props.columns)
+  return (
+    <Box key="header" flexDirection="row" flexWrap="wrap">
+      <Box flexDirection="row">{segmentsOf(els, header.ruler)}</Box>
+      <Box flexDirection="row">{segmentsOf(els, header.facts)}</Box>
+    </Box>
+  )
+}
+
 function BoardPane(els: Els, io: Io, props: ViewProps): RenderElement {
-  const { Box, Input, Text } = els
+  const { Box, Input } = els
   return (
     <Box flexDirection="column">
-      <Box key="header"><Text bold>{headerLine(props.board, props.ui.view)}</Text></Box>
+      {Header(els, props)}
       {Toolbar(els, io, props)}
       {props.ui.composing === null ? null : (
         <Input key="comment-input" label={`comment on ${props.ui.composing}`} placeholder="type, then Enter" autoFocus onSubmit={value => void submitComment(io, value)} />

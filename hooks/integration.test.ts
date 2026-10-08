@@ -38,7 +38,7 @@ test('two tasks run concurrently to done, each in its own commit, with one compl
   expect(w.files.get(TASKS_PATH)).toBe('## 1. Core\n\n- [x] 1.1 Parse tasks\n- [x] 1.2 Flip lines\n')
   expect(w.toasts).toEqual(['zboard: change demo is complete (2/2 tasks done). The integrated `ptest --full` gate is still required before handoff.'])
   const ui = await mountPane($, 'terminal')
-  expect((await ui.find({ key: 'header' }))?.text).toBe('zboard · demo ▓▓▓▓▓ 2/2 · 0 agents · 0 decisions · 0 tok [v] Kanban')
+  expect((await ui.find({ key: 'header' }))?.text).toMatch(/^├─ zboard · demo ─+ 2\/2 ▓▓▓▓▓ ─┤  ◐ 0 running · 0 decisions · 0 tok · \[v\] Kanban$/)
   await ui.unmount()
 })
 

@@ -41,3 +41,21 @@ export const findIn = async (ui: KeyFinder, key: string, type: string): Promise<
   const found = scope === undefined ? undefined : descendant(scope.children, type)
   return found === undefined ? undefined : { props: found.props ?? {} }
 }
+
+export interface FoundText { readonly text: string; readonly props: Record<string, unknown> }
+
+const textOf = (node: Node): string =>
+  (node.children ?? []).map(child => (typeof child === 'string' ? child : typeof child === 'object' && child !== null ? textOf(child as Node) : '')).join('')
+
+const texts = (nodes: readonly unknown[]): FoundText[] =>
+  nodes.flatMap(node => {
+    if (typeof node !== 'object' || node === null) return []
+    const found = node as Node
+    return found.type === 'Text' ? [{ text: textOf(found), props: found.props ?? {} }] : texts(found.children ?? [])
+  })
+
+/** Every `Text` under the element keyed `key`, in document order, with its shown text and props (colors included). */
+export const textsIn = async (ui: KeyFinder, key: string): Promise<FoundText[]> => {
+  const scope = await ui.find({ key })
+  return scope === undefined ? [] : texts(scope.children)
+}

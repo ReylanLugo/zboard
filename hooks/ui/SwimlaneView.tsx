@@ -7,6 +7,7 @@ import { ROLES, agentTypeOf } from '../domain/types.ts'
 import { openDetail } from './actions.ts'
 import type { Els, ViewProps } from './els.ts'
 import { chipText, heartbeat } from './format.ts'
+import { heartbeatColor, roleColor } from './theme.ts'
 
 const FAILED = new Set(['error', 'interrupted'])
 
@@ -27,11 +28,11 @@ export function SwimlaneView(els: Els, io: Io, tasks: readonly Task[], props: Vi
         const runs = runsOf(tasks, role)
         return (
           <Box key={`lane:${role}`} flexDirection="column">
-            <Text bold>{`${agentTypeOf(role)} (${runs.length})`}</Text>
+            <Text bold color={roleColor(role)}>{`${agentTypeOf(role)} (${runs.length})`}</Text>
             {runs.map(({ task, run }) => (
               <Box key={`run:${run.agentId}`} flexDirection="column">
                 <Button key={`card:${task.id}`} label={`${heartbeat(run, props.now)} ${task.id} ${task.title}`} plain onPress={() => void openDetail(io, task.id)} />
-                <Text dimColor>{chipText(run, props.now)}</Text>
+                <Text color={heartbeatColor(heartbeat(run, props.now))}>{chipText(run, props.now)}</Text>
               </Box>
             ))}
           </Box>
