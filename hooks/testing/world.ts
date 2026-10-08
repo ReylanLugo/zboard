@@ -149,9 +149,10 @@ function installSession(on: On, w: World): void {
   on('session.root', () => ({ value: ROOT }))
   on('session.cwd', () => ({ value: ROOT }))
   on('session.messages', () => ({ value: [] }))
-  on('session.append', (_$, e) => {
+  // The engine keeps a session row only through next(e); answering without it is refused.
+  on('session.append', (_$, e, next) => {
     w.appended.push(e.message.content.map(block => (typeof block.text === 'string' ? block.text : '')).join(''))
-    return { message: e.message, uuid: `u-${w.appended.length}` }
+    return next(e)
   })
   on('turn.complete', (_$, e) => ({ text: e.answer }))
 }
