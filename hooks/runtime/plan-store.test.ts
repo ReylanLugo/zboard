@@ -32,5 +32,5 @@ test('fs.list answers the entries of a world directory', { timeoutMs: PLUGIN_TES
 
 test('the viewer UI state starts with nothing selected', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
-  expect((await worldIo(w).state.ui.read()).changes).toEqual({ selected: null, tab: 'summary', artifact: null, composing: null, forecast: null })
+  expect((await worldIo(w).state.ui.read()).changes).toEqual({ selected: null, tab: 'summary', artifact: null, composing: null, forecast: null, showRaw: false, initError: null })
 })

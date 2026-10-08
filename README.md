@@ -60,13 +60,22 @@ and comment with `board_comment`. It is told only when a task needs a decision o
 ## Changes viewer
 
 `/zboard changes` opens the `zboard-changes` pane (`/zboard changes <change>` opens it on one change; `o` on the
-board opens it on the board's change). The list groups OpenSpec changes as Active, Drafts and Archived with their
-stage and task progress; the detail shows the artifact stepper (`●` done, `◐` current, `○` other), the readiness
-bar and the tabs Summary · Diagrams · Specs · Tasks · Verify · History.
+board opens it on the board's change). The list groups OpenSpec changes as Active, Drafts and Archived; each row
+shows a stage icon (`✎` draft, `◐` authoring, `●` ready, `▶` executing, `◆` verifying, retrospective or archiving,
+`✓` archived) and, when the change has tasks, a progress bar (`▓▓▓░░ 3/5`). The detail shows the schema, the
+artifact stepper (`●` done, `◐` current, `○` other), the readiness bar and the tabs Summary · Diagrams · Specs ·
+Tasks · Verify · History.
+
+In a folder without OpenSpec the viewer shows an init card instead of the list: `i` runs
+`openspec init --tools none --no-animation` at the repository root, then sets `schema: superpowers-bridge` in
+`openspec/config.yaml` when `openspec schemas` lists it (only that line changes) and refreshes. CLI failures show as
+one readable line (`⚠ <message> · fix: <fix>`); `o` toggles the raw CLI output behind them.
 
 | Key | Action |
 |-----|--------|
-| `n` | New change (`openspec new change <id> --schema superpowers-bridge`) |
+| `i` | Initialize OpenSpec here (only in a folder without OpenSpec) |
+| `n` | New change (`openspec new change <id> --schema superpowers-bridge`, or the project's default schema when `superpowers-bridge` is not installed) |
+| `o` | Show / hide the raw CLI output behind an error line |
 | `d` | Draft the next artifact in `openspec status` order (brainstorm runs as a Q&A; the plan step shows a forecast first) |
 | `c` | Comment on the selected artifact → the drafter proposes a diff |
 | `a` / `z` | Accept / reject the pending diff |

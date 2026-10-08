@@ -24,6 +24,7 @@ export const selectChange = (io: Io, id: string): Promise<void> => setChanges(io
 export const setTab = (io: Io, tab: ChangesTab): Promise<void> => setChanges(io, ui => ({ ...ui, tab }))
 export const selectArtifact = (io: Io, artifact: string): Promise<void> => setChanges(io, ui => ({ ...ui, artifact }))
 export const startCompose = (io: Io, kind: ComposeKind): Promise<void> => setChanges(io, ui => ({ ...ui, composing: kind }))
+export const toggleRaw = (io: Io): Promise<void> => setChanges(io, ui => ({ ...ui, showRaw: !ui.showRaw }))
 
 export async function composeComment(io: Io, changeId: string): Promise<void> {
   const gate = actionsFor((await readPlan(io)).changes[changeId]).comment

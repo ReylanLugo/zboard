@@ -14,16 +14,20 @@ export type ChangesTab = 'summary' | 'diagrams' | 'specs' | 'tasks' | 'verify' |
 export const CHANGES_TABS: readonly ChangesTab[] = ['summary', 'diagrams', 'specs', 'tasks', 'verify', 'history']
 export type ComposeKind = 'new' | 'comment' | 'note'
 
-/** Transient state of the changes viewer pane; `closeChanges` clears `composing` and `forecast`. */
+/** Transient state of the changes viewer pane; `closeChanges` clears `composing`, `forecast`, `showRaw` and `initError`. */
 export interface ChangesUi {
   readonly selected: string | null
   readonly tab: ChangesTab
   readonly artifact: string | null
   readonly composing: ComposeKind | null
   readonly forecast: Forecast | null
+  /** `?` shows the raw CLI output behind each readable error line. */
+  readonly showRaw: boolean
+  /** The raw output of the last failed `openspec init`, until it succeeds or the pane closes. */
+  readonly initError: string | null
 }
 
-export const DEFAULT_CHANGES_UI: ChangesUi = { selected: null, tab: 'summary', artifact: null, composing: null, forecast: null }
+export const DEFAULT_CHANGES_UI: ChangesUi = { selected: null, tab: 'summary', artifact: null, composing: null, forecast: null, showRaw: false, initError: null }
 
 export interface UiState {
   readonly view: View

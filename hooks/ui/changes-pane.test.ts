@@ -21,12 +21,12 @@ for (const surface of SURFACES) {
     expect(await zboard($, 'changes')).toBe('changes opened.')
     expect(w.opened).toEqual(['zboard-changes'])
     const ui = await mountPane($, surface, 'zboard-changes')
-    expect((await ui.find({ key: 'group:active' }))?.text).toBe('Active (1)')
-    expect((await ui.find({ key: 'group:drafts' }))?.text).toBe('Drafts (1)')
+    expect((await ui.find({ key: 'group:active' }))?.text).toBe('Active   (1)')
+    expect((await ui.find({ key: 'group:drafts' }))?.text).toBe('Drafts   (1)')
     expect((await ui.find({ key: 'group:archived' }))?.text).toBe('Archived (1)')
-    expect(await labelOf(ui, 'change:a')).toBe('a · ready · 0/1')
-    expect(await labelOf(ui, 'change:b')).toBe('b · authoring')
-    expect(await labelOf(ui, 'change:2026-01-01-c')).toBe('2026-01-01-c · archived')
+    expect(await labelOf(ui, 'change:a')).toBe('● a · ready · ░░░░░ 0/1')
+    expect(await labelOf(ui, 'change:b')).toBe('◐ b · authoring')
+    expect(await labelOf(ui, 'change:2026-01-01-c')).toBe('✓ 2026-01-01-c · archived')
     await ui.unmount()
   })
 
@@ -42,7 +42,7 @@ for (const surface of SURFACES) {
     await ui.input({ key: 'compose', text: 'add-export' })
     expect(w.runs).toContainEqual(['openspec', 'new', 'change', 'add-export', '--schema', 'superpowers-bridge'])
     expect(w.toasts).toContain('zboard: created add-export')
-    expect(await labelOf(ui, 'change:add-export')).toBe('add-export · draft')
+    expect(await labelOf(ui, 'change:add-export')).toBe('✎ add-export · draft')
     expect((await ui.find({ key: 'detail-title' }))?.text).toBe('add-export · draft')
     await ui.unmount()
   })
@@ -56,8 +56,8 @@ for (const surface of SURFACES) {
     await boot($)
     await zboard($, 'changes broken')
     const ui = await mountPane($, surface, 'zboard-changes')
-    expect(await labelOf(ui, 'change:broken')).toBe('broken · draft · ⚠ error')
-    expect(await labelOf(ui, 'change:a')).toBe('a · ready · 0/1')
+    expect(await labelOf(ui, 'change:broken')).toBe('✎ broken · draft · ⚠ error')
+    expect(await labelOf(ui, 'change:a')).toBe('● a · ready · ░░░░░ 0/1')
     expect((await ui.find({ key: 'change-error' }))?.text).toBe('⚠ boom')
     await ui.unmount()
     expect(await zboard($, '')).toBe('board opened.')
@@ -70,7 +70,7 @@ test('the header counts the groups and shows the mirror and error state', () => 
     { type: 'PlanMirrorState', pending: true, seq: 2, at: 2 },
     { type: 'PlanError', hook: 'new change', message: 'x', seq: 3, at: 3 },
   ])
-  expect(headerText(plan)).toBe('zboard changes · 0 active · 1 drafts · 1 archived · ⚠ mirror pending · ⚠ 1 error(s)')
+  expect(headerText(plan)).toBe('zboard changes · 0 active · 1 drafts · 1 archived · ⚠ mirror pending · ⚠ 1 issue')
 })
 
 test('/zboard run behaves exactly as before; an invalid id is refused by /zboard changes', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {

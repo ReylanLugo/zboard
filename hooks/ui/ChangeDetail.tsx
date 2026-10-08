@@ -1,6 +1,7 @@
 import type { RenderElement } from 'claude-code'
 import type { Io } from '../runtime/io.ts'
 
+import { readableError } from '../plan/errors.ts'
 import { actionsFor } from '../plan/lifecycle.ts'
 import type { ChangeRecord } from '../plan/types.ts'
 import type { Ctx } from '../runtime/ctx.ts'
@@ -49,13 +50,25 @@ function Toolbar(els: Els, io: Io, ctx: Ctx, rec: ChangeRecord): RenderElement {
   )
 }
 
-function Header(els: Els, rec: ChangeRecord, docs: ChangeDocs): RenderElement[] {
+/** The change's CLI error as one readable line; `?` (ui.showRaw) adds the raw output below it. */
+function ListError(els: Els, rec: ChangeRecord, ui: ChangesUi): RenderElement[] {
+  const { Box, Code, Text } = els
+  if (rec.listError === undefined) return []
+  return [
+    <Box key="change-error"><Text>{`⚠ ${readableError(rec.listError)}`}</Text></Box>,
+    ...(ui.showRaw ? [<Box key="raw-change-error"><Code source={rec.listError} /></Box>] : []),
+  ]
+}
+
+function Header(els: Els, rec: ChangeRecord, docs: ChangeDocs, ui: ChangesUi): RenderElement[] {
   const { Box, Text } = els
+  const schema = rec.status?.schema ?? ''
   return [
     <Box key="detail-title"><Text bold>{`${rec.id} · ${rec.stage}`}</Text></Box>,
-    ...(rec.listError === undefined ? [] : [<Box key="change-error"><Text>{`⚠ ${rec.listError}`}</Text></Box>]),
+    ...(schema === '' ? [] : [<Box key="detail-schema"><Text dimColor>{`schema · ${schema}`}</Text></Box>]),
+    ...ListError(els, rec, ui),
     ...(docs.error === undefined ? [] : [<Box key="docs-error"><Text>{`⚠ ${docs.error}`}</Text></Box>]),
-    ...rec.errors.slice(-3).map((error, index) => <Box key={`change-error:${index}`}><Text dimColor>{`⚠ ${error.hook}: ${error.message}`}</Text></Box>),
+    ...rec.errors.slice(-3).map((error, index) => <Box key={`change-error:${index}`}><Text dimColor>{`⚠ ${error.hook}: ${readableError(error.message)}`}</Text></Box>),
   ]
 }
 
@@ -171,7 +184,7 @@ export function ChangeDetail(els: Els, io: Io, ctx: Ctx, props: DetailProps): Re
   const { Box } = els
   return (
     <Box key="detail" flexDirection="column" flexGrow={1}>
-      {Header(els, props.rec, props.docs)}
+      {Header(els, props.rec, props.docs, props.ui)}
       {Stepper(els, io, props.rec, props.ui)}
       {Readiness(els, props.rec)}
       {Toolbar(els, io, ctx, props.rec)}

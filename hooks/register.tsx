@@ -308,7 +308,8 @@ export const register: Register = (on, options) => {
     const io = ioOf($)
     const selected = ui.changes.selected === null ? undefined : plan.changes[ui.changes.selected]
     const docs = await readDocs(io, selected)
-    return renderChanges($.ui.resolve(e), e.surface, io, ctx, { plan, ui: ui.changes, docs, columns: e.props.bodyColumns })
+    const root = await io.session.root()
+    return renderChanges($.ui.resolve(e), e.surface, io, ctx, { plan, ui: ui.changes, docs, columns: e.props.bodyColumns, root })
   })
   on('ui.close', { id: 'zboard-changes' }, async ($, e, next) => {
     const io = ioOf($)

@@ -8,8 +8,11 @@ import type { ChangeDocs } from '../runtime/plan-docs.ts'
 import type { ChangesUi, ComposeKind } from '../runtime/ui-types.ts'
 import { CHANGES_TABS } from '../runtime/ui-types.ts'
 import { ChangeDetail } from './ChangeDetail.tsx'
-import { selectChange, setChanges, setTab, startCompose, submitCompose } from './changes-actions.ts'
-import { GROUPS, defaultArtifact, groupRows, headerText, rowLabel } from './changes-model.ts'
+import { readableError } from '../plan/errors.ts'
+import { initOpenspec } from '../runtime/plan-init.ts'
+import { isolatePlan } from '../runtime/plan-store.ts'
+import { selectChange, setChanges, setTab, startCompose, submitCompose, toggleRaw } from './changes-actions.ts'
+import { GROUPS, defaultArtifact, groupRows, groupTitle, headerText, isNotInitialized, listIssue, rowLabel, visibleChanges } from './changes-model.ts'
 import type { Els } from './els.ts'
 
 export interface ChangesProps {
@@ -17,6 +20,8 @@ export interface ChangesProps {
   readonly ui: ChangesUi
   readonly docs: ChangeDocs
   readonly columns: number
+  /** The repository root, named on the init card. */
+  readonly root: string
 }
 
 type Surface = 'terminal' | 'desktop'
@@ -24,6 +29,12 @@ type Surface = 'terminal' | 'desktop'
 const WIDE = 100
 const LIST_WIDTH = 36
 const EMPTY_HINT = 'Select a change, or press n to create one.'
+const NONE_HINT = 'No changes yet. A change holds a proposal, specs and tasks; press n to start one.'
+const INIT_TITLE = '◇  This folder has no OpenSpec project yet'
+const INIT_WHY = [
+  'OpenSpec keeps each plan as a proposal, design, specs and tasks',
+  'in an ./openspec folder at the root of this repository.',
+] as const
 const CHANGE_PREFIX = 'change:'
 const TAB_PREFIX = 'tab:'
 
@@ -37,49 +48,112 @@ function List(els: Els, io: Io, props: ChangesProps): RenderElement {
   const { Box, Button, Text } = els
   return (
     <Box key="list" flexDirection="column" width={props.columns >= WIDE ? LIST_WIDTH : '100%'}>
-      {GROUPS.map(group => {
-        const rows = groupRows(props.plan, group.id)
-        return (
-          <Box key={`section:${group.id}`} flexDirection="column">
-            <Box key={`group:${group.id}`}><Text bold>{`${group.title} (${rows.length})`}</Text></Box>
-            {rows.map(rec => <Button key={`${CHANGE_PREFIX}${rec.id}`} label={rowLabel(rec)} plain onPress={() => void selectChange(io, rec.id)} />)}
-          </Box>
-        )
-      })}
+      {GROUPS.map(group => (
+        <Box key={`section:${group.id}`} flexDirection="column">
+          <Box key={`group:${group.id}`}><Text bold>{groupTitle(props.plan, group)}</Text></Box>
+          {groupRows(props.plan, group.id).map(rec => <Button key={`${CHANGE_PREFIX}${rec.id}`} label={rowLabel(rec)} plain onPress={() => void selectChange(io, rec.id)} />)}
+        </Box>
+      ))}
     </Box>
   )
 }
 
-function Errors(els: Els, plan: PlanBoard): RenderElement[] {
-  const { Box, Text } = els
+/** One readable line per error; `?` adds the raw output of the list error below it. */
+function Errors(els: Els, plan: PlanBoard, ui: ChangesUi): RenderElement[] {
+  const { Box, Code, Text } = els
+  const issue = listIssue(plan)
   return [
-    ...(plan.listError === undefined ? [] : [<Box key="list-error"><Text>{`⚠ openspec: ${plan.listError}`}</Text></Box>]),
-    ...plan.errors.slice(-3).map((error, index) => <Box key={`error:${index}`}><Text dimColor>{`⚠ ${error.hook}: ${error.message}`}</Text></Box>),
+    ...(issue === undefined ? [] : [<Box key="list-error"><Text>{`⚠ ${readableError(issue)}`}</Text></Box>]),
+    ...(issue === undefined || !ui.showRaw ? [] : [<Box key="raw-list-error"><Code source={issue} /></Box>]),
+    ...plan.errors.slice(-3).map((error, index) => <Box key={`error:${index}`}><Text dimColor>{`⚠ ${error.hook}: ${readableError(error.message)}`}</Text></Box>),
   ]
+}
+
+/** Whether any shown error has raw output behind it, so `?` has something to toggle. */
+function hasRaw(plan: PlanBoard, ui: ChangesUi, rec: ChangeRecord | undefined): boolean {
+  if (isNotInitialized(plan)) return (ui.initError ?? null) !== null
+  return listIssue(plan) !== undefined || rec?.listError !== undefined
+}
+
+function RawToggle(els: Els, io: Io, ui: ChangesUi): RenderElement {
+  const { Button } = els
+  return <Button key="raw" label={ui.showRaw ? 'hide raw output' : 'raw output'} hotkey="o" plain onPress={() => void toggleRaw(io)} />
+}
+
+function InitCard(els: Els, io: Io, props: ChangesProps): RenderElement {
+  const { Box, Button, Code, Text } = els
+  const failed = props.ui.initError ?? null
+  return (
+    <Box key="init-card" flexDirection="column" gap={1}>
+      <Box key="init-title"><Text bold>{INIT_TITLE}</Text></Box>
+      <Box key="init-why" flexDirection="column">
+        {INIT_WHY.map((line, index) => <Box key={`init-why-${index + 1}`}><Text dimColor>{line}</Text></Box>)}
+      </Box>
+      <Box key="init-actions" flexDirection="row" gap={1}>
+        <Button key="init" label="Initialize OpenSpec here" hotkey="i" variant="primary" onPress={() => void isolatePlan(io, 'ui.init', () => initOpenspec(io), undefined)} />
+        {failed === null ? null : RawToggle(els, io, props.ui)}
+      </Box>
+      {failed === null ? null : <Box key="init-error"><Text>{`⚠ OpenSpec init failed: ${readableError(failed)}`}</Text></Box>}
+      {failed === null || !props.ui.showRaw ? null : <Box key="raw-init-error"><Code source={failed} /></Box>}
+      <Box key="init-root"><Text dimColor>{props.root}</Text></Box>
+    </Box>
+  )
+}
+
+function NoChanges(els: Els, io: Io): RenderElement {
+  const { Box, Button, Text } = els
+  return (
+    <Box key="changes-none" flexDirection="column" gap={1}>
+      <Box key="none-actions"><Button key="new" label="n  New change" hotkey="n" onPress={() => void startCompose(io, 'new')} /></Box>
+      <Box key="changes-none-hint"><Text dimColor>{NONE_HINT}</Text></Box>
+    </Box>
+  )
 }
 
 function Detail(els: Els, io: Io, ctx: Ctx, rec: ChangeRecord, props: ChangesProps, surface: Surface): RenderElement {
   return ChangeDetail(els, io, ctx, { rec, ui: props.ui, docs: props.docs, surface, columns: props.columns })
 }
 
+function Body(els: Els, surface: Surface, io: Io, ctx: Ctx, props: ChangesProps): RenderElement {
+  const { Box, Text } = els
+  const rec = props.ui.selected === null ? undefined : props.plan.changes[props.ui.selected]
+  if (visibleChanges(props.plan).length === 0 && listIssue(props.plan) === undefined) return NoChanges(els, io)
+  return (
+    <Box key="body" flexDirection={props.columns >= WIDE ? 'row' : 'column'} gap={2}>
+      {List(els, io, props)}
+      {rec === undefined ? <Box key="changes-empty"><Text dimColor>{EMPTY_HINT}</Text></Box> : Detail(els, io, ctx, rec, props, surface)}
+    </Box>
+  )
+}
+
+function Actions(els: Els, io: Io, props: ChangesProps, rec: ChangeRecord | undefined): RenderElement | null {
+  const { Box, Button } = els
+  const isEmpty = visibleChanges(props.plan).length === 0 && listIssue(props.plan) === undefined
+  const raw = hasRaw(props.plan, props.ui, rec)
+  if (isEmpty && !raw) return null
+  return (
+    <Box key="pane-actions" flexDirection="row" gap={1}>
+      {isEmpty ? null : <Button key="new" label="new change" hotkey="n" onPress={() => void startCompose(io, 'new')} />}
+      {raw ? RawToggle(els, io, props.ui) : null}
+    </Box>
+  )
+}
+
 function ChangesView(els: Els, surface: Surface, io: Io, ctx: Ctx, props: ChangesProps): RenderElement {
-  const { Box, Button, Input, Text } = els
+  const { Box, Input, Text } = els
   const rec = props.ui.selected === null ? undefined : props.plan.changes[props.ui.selected]
   const composing = props.ui.composing
+  const header = <Box key="changes-header"><Text bold>{headerText(props.plan)}</Text></Box>
+  if (isNotInitialized(props.plan)) return <Box flexDirection="column">{header}{Errors(els, props.plan, props.ui)}{InitCard(els, io, props)}</Box>
   return (
     <Box flexDirection="column">
-      <Box key="changes-header"><Text bold>{headerText(props.plan)}</Text></Box>
-      {Errors(els, props.plan)}
-      <Box key="pane-actions" flexDirection="row" gap={1}>
-        <Button key="new" label="new change" hotkey="n" onPress={() => void startCompose(io, 'new')} />
-      </Box>
+      {header}
+      {Errors(els, props.plan, props.ui)}
+      {Actions(els, io, props, rec)}
       {composing === null ? null : (
         <Input key="compose" label={composeLabel(composing, rec, props.ui)} placeholder="type, then Enter" autoFocus onSubmit={value => void submitCompose(io, ctx, value)} />
       )}
-      <Box key="body" flexDirection={props.columns >= WIDE ? 'row' : 'column'} gap={2}>
-        {List(els, io, props)}
-        {rec === undefined ? <Box key="changes-empty"><Text dimColor>{EMPTY_HINT}</Text></Box> : Detail(els, io, ctx, rec, props, surface)}
-      </Box>
+      {Body(els, surface, io, ctx, props)}
     </Box>
   )
 }
@@ -104,4 +178,4 @@ export async function focusChange(io: Io, requestId: string, element: string | u
   if (tab !== undefined) await setTab(io, tab)
 }
 
-export const closeChanges = (io: Io): Promise<void> => setChanges(io, ui => ({ ...ui, composing: null, forecast: null }))
+export const closeChanges = (io: Io): Promise<void> => setChanges(io, ui => ({ ...ui, composing: null, forecast: null, showRaw: false, initError: null }))

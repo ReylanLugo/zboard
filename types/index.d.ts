@@ -22,6 +22,8 @@ export type ZboardUi = {
     readonly artifact: string | null
     readonly composing: string | null
     readonly forecast: unknown
+    readonly showRaw: boolean
+    readonly initError: string | null
   }
 }
 

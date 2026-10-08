@@ -2,8 +2,10 @@ import type { ParsedTask } from '../domain/events.ts'
 import { groupOf, nextArtifact } from '../plan/lifecycle.ts'
 import type { SpecFile } from '../plan/readiness.ts'
 import { coveringTasks, parseRequirements } from '../plan/readiness.ts'
-import type { ChangeGroup, ChangeRecord, PlanBoard } from '../plan/types.ts'
+import { isNoOpenspecRoot } from '../plan/errors.ts'
+import type { ChangeGroup, ChangeRecord, ChangeStage, PlanBoard } from '../plan/types.ts'
 import { BRAINSTORM_ARTIFACT } from '../plan/types.ts'
+import { progressBar } from './format.ts'
 
 export const GROUPS: readonly { readonly id: ChangeGroup; readonly title: string }[] = [
   { id: 'active', title: 'Active' },
@@ -20,20 +22,44 @@ export const visibleChanges = (plan: PlanBoard): ChangeRecord[] =>
 
 export const groupRows = (plan: PlanBoard, group: ChangeGroup): ChangeRecord[] => visibleChanges(plan).filter(rec => groupOf(rec) === group)
 
-const progressOf = (rec: ChangeRecord): string =>
-  (rec.tasks.length === 0 ? '' : ` · ${rec.tasks.filter(task => task.done).length}/${rec.tasks.length}`)
+const GROUP_TITLE_WIDTH = Math.max(...GROUPS.map(group => group.title.length))
+
+/** `Active   (2)`: titles padded so the counts line up. */
+export const groupTitle = (plan: PlanBoard, group: (typeof GROUPS)[number]): string =>
+  `${group.title.padEnd(GROUP_TITLE_WIDTH)} (${groupRows(plan, group.id).length})`
+
+export const STAGE_ICONS: Readonly<Record<ChangeStage, string>> = {
+  draft: '✎', authoring: '◐', ready: '●', executing: '▶', verifying: '◆', retrospective: '◆', archiving: '◆', archived: '✓',
+}
+
+const progressOf = (rec: ChangeRecord): string => {
+  if (rec.tasks.length === 0) return ''
+  const done = rec.tasks.filter(task => task.done).length
+  return ` · ${progressBar(done, rec.tasks.length)} ${done}/${rec.tasks.length}`
+}
 
 export const rowLabel = (rec: ChangeRecord): string =>
-  `${rec.id} · ${rec.stage}${progressOf(rec)}${rec.listError === undefined ? '' : ' · ⚠ error'}${rec.activeAgent === undefined ? '' : ` · ${rec.activeAgent.role} running`}`
+  `${STAGE_ICONS[rec.stage]} ${rec.id} · ${rec.stage}${progressOf(rec)}${rec.listError === undefined ? '' : ' · ⚠ error'}${rec.activeAgent === undefined ? '' : ` · ${rec.activeAgent.role} running`}`
+
+/** The CLI found no `openspec/` from the repository root: the viewer offers to initialize it. */
+export const isNotInitialized = (plan: PlanBoard): boolean => isNoOpenspecRoot(plan.listError)
+
+/** The list-level error worth showing; a missing OpenSpec root is a state, shown by the init card. */
+export const listIssue = (plan: PlanBoard): string | undefined => (isNotInitialized(plan) ? undefined : plan.listError)
+
+const issues = (count: number): string => `⚠ ${count} issue${count === 1 ? '' : 's'}`
 
 export function headerText(plan: PlanBoard): string {
   const visible = visibleChanges(plan)
   const count = (group: ChangeGroup): number => visible.filter(rec => groupOf(rec) === group).length
-  const errors = plan.errors.length + (plan.listError === undefined ? 0 : 1)
+  const total = plan.errors.length + (listIssue(plan) === undefined ? 0 : 1)
+  const state = isNotInitialized(plan)
+    ? 'zboard changes · OpenSpec not initialized'
+    : `zboard changes · ${count('active')} active · ${count('drafts')} drafts · ${count('archived')} archived`
   return [
-    `zboard changes · ${count('active')} active · ${count('drafts')} drafts · ${count('archived')} archived`,
+    state,
     ...(plan.mirrorPending ? ['⚠ mirror pending'] : []),
-    ...(errors > 0 ? [`⚠ ${errors} error(s)`] : []),
+    ...(total > 0 ? [issues(total)] : []),
   ].join(' · ')
 }
 
