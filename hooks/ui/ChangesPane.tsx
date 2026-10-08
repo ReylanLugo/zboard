@@ -14,6 +14,7 @@ import { isolatePlan } from '../runtime/plan-store.ts'
 import { selectChange, setChanges, setTab, startCompose, submitCompose, toggleRaw } from './changes-actions.ts'
 import { GROUPS, STAGE_ICONS, defaultArtifact, groupRows, groupTitle, headerText, isNotInitialized, listIssue, rowText, visibleChanges } from './changes-model.ts'
 import type { Els } from './els.ts'
+import { keyed } from './format.ts'
 import { THEME, stageColor } from './theme.ts'
 
 export interface ChangesProps {
@@ -83,7 +84,7 @@ function hasRaw(plan: PlanBoard, ui: ChangesUi, rec: ChangeRecord | undefined): 
 
 function RawToggle(els: Els, io: Io, ui: ChangesUi): RenderElement {
   const { Button } = els
-  return <Button key="raw" label={ui.showRaw ? 'hide raw output' : 'raw output'} hotkey="o" plain onPress={() => void toggleRaw(io)} />
+  return <Button key="raw" {...keyed('o', ui.showRaw ? 'hide raw output' : 'raw output')} plain onPress={() => void toggleRaw(io)} />
 }
 
 function InitCard(els: Els, io: Io, props: ChangesProps): RenderElement {
@@ -96,7 +97,7 @@ function InitCard(els: Els, io: Io, props: ChangesProps): RenderElement {
         {INIT_WHY.map((line, index) => <Box key={`init-why-${index + 1}`}><Text dimColor>{line}</Text></Box>)}
       </Box>
       <Box key="init-actions" flexDirection="row" gap={1}>
-        <Button key="init" label="Initialize OpenSpec here" hotkey="i" variant="primary" onPress={() => void isolatePlan(io, 'ui.init', () => initOpenspec(io), undefined)} />
+        <Button key="init" {...keyed('i', 'Initialize OpenSpec here')} variant="primary" onPress={() => void isolatePlan(io, 'ui.init', () => initOpenspec(io), undefined)} />
         {failed === null ? null : RawToggle(els, io, props.ui)}
       </Box>
       {failed === null ? null : <Box key="init-error"><Text color={THEME.brick}>{`⚠ OpenSpec init failed: ${readableError(failed)}`}</Text></Box>}
@@ -110,7 +111,7 @@ function NoChanges(els: Els, io: Io): RenderElement {
   const { Box, Button, Text } = els
   return (
     <Box key="changes-none" flexDirection="column" gap={1}>
-      <Box key="none-actions"><Button key="new" label="n  New change" hotkey="n" onPress={() => void startCompose(io, 'new')} /></Box>
+      <Box key="none-actions"><Button key="new" {...keyed('n', 'New change')} onPress={() => void startCompose(io, 'new')} /></Box>
       <Box key="changes-none-hint"><Text dimColor>{NONE_HINT}</Text></Box>
     </Box>
   )
@@ -139,7 +140,7 @@ function Actions(els: Els, io: Io, props: ChangesProps, rec: ChangeRecord | unde
   if (isEmpty && !raw) return null
   return (
     <Box key="pane-actions" flexDirection="row" gap={1}>
-      {isEmpty ? null : <Button key="new" label="new change" hotkey="n" onPress={() => void startCompose(io, 'new')} />}
+      {isEmpty ? null : <Button key="new" {...keyed('n', 'new change')} onPress={() => void startCompose(io, 'new')} />}
       {raw ? RawToggle(els, io, props.ui) : null}
     </Box>
   )

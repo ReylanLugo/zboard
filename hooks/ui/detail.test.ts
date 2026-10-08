@@ -57,6 +57,7 @@ for (const surface of SURFACES) {
     expect((await detail.find({ key: 'detail-title' }))?.text).toBe('1.1 Parse tasks — running (plan)')
     expect(await detail.find({ text: 'research #1 (loop 0): ✓ 1 evidenced finding(s)' })).toBeDefined()
     expect(await detail.find({ text: '  delivered to zboard:planner' })).toBeDefined()
+    expect((await detail.find({ key: 'artifact' }))?.props.label).toBe('[a] full artifact')
     await detail.press({ key: 'artifact' })
     expect((await detail.find({ key: 'artifact-text' }))?.text).toContain('the parser lives here')
     await detail.unmount()

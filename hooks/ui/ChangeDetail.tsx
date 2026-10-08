@@ -16,6 +16,7 @@ import { CHANGES_TABS } from '../runtime/ui-types.ts'
 import { act, composeComment, selectArtifact, setTab } from './changes-actions.ts'
 import { READINESS_PENDING, defaultArtifact, historyRows, isPlanPending, readinessLine, stepperMarks, uncoveredRequirements } from './changes-model.ts'
 import { DiagramsTab } from './DiagramsTab.tsx'
+import { keyed } from './format.ts'
 import { DiffView } from './DiffView.tsx'
 import { QaView, showsQa } from './QaView.tsx'
 import { CritiqueList, ForecastView, RetryView, VerifyTab } from './VerifyTab.tsx'
@@ -42,11 +43,11 @@ function Toolbar(els: Els, io: Io, ctx: Ctx, rec: ChangeRecord): RenderElement {
   const id = rec.id
   return (
     <Box key="toolbar" flexDirection="row" gap={1} flexWrap="wrap">
-      <Button key="comment" label="comment" hotkey="c" dimColor={!gates.comment.enabled} onPress={act(io, rec, 'comment', () => composeComment(io, id))} />
-      <Button key="draft" label="draft next" hotkey="d" dimColor={!gates.draft.enabled} onPress={act(io, rec, 'draft', () => draftNext(io, ctx, id))} />
-      <Button key="explain" label="explain" hotkey="e" dimColor={!gates.explain.enabled} onPress={act(io, rec, 'explain', () => explainChange(io, ctx, id))} />
-      <Button key="critique" label="critique" hotkey="x" dimColor={!gates.critique.enabled} onPress={act(io, rec, 'critique', () => critiqueChange(io, ctx, id))} />
-      <Button key="run" label="▶ run" hotkey="r" {...(gates.run.enabled ? { variant: 'primary' as const } : { dimColor: true })} onPress={act(io, rec, 'run', () => runChange(io, ctx, id))} />
+      <Button key="comment" {...keyed('c', 'comment')} dimColor={!gates.comment.enabled} onPress={act(io, rec, 'comment', () => composeComment(io, id))} />
+      <Button key="draft" {...keyed('d', 'draft next')} dimColor={!gates.draft.enabled} onPress={act(io, rec, 'draft', () => draftNext(io, ctx, id))} />
+      <Button key="explain" {...keyed('e', 'explain')} dimColor={!gates.explain.enabled} onPress={act(io, rec, 'explain', () => explainChange(io, ctx, id))} />
+      <Button key="critique" {...keyed('x', 'critique')} dimColor={!gates.critique.enabled} onPress={act(io, rec, 'critique', () => critiqueChange(io, ctx, id))} />
+      <Button key="run" {...keyed('r', '▶ run')} {...(gates.run.enabled ? { variant: 'primary' as const } : { dimColor: true })} onPress={act(io, rec, 'run', () => runChange(io, ctx, id))} />
     </Box>
   )
 }

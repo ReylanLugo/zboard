@@ -7,6 +7,7 @@ import type { UiState } from '../runtime/ui-types.ts'
 import { setUi, toggleArtifact } from './actions.ts'
 import { detailSections, latestArtifactKey } from './detail-model.ts'
 import type { Els } from './els.ts'
+import { keyed } from './format.ts'
 import { ink, statusColor } from './theme.ts'
 
 const ARTIFACT_PREVIEW_CHARS = 4_000
@@ -40,7 +41,7 @@ export function renderDetail(els: unknown, io: Io, props: DetailProps): RenderEl
         </Box>
       ))}
       <Box key="detail-actions" flexDirection="row" gap={1}>
-        <Button key="artifact" label={ui.showArtifact ? 'hide artifact' : 'full artifact'} hotkey="a" onPress={() => void toggleArtifact(io)} />
+        <Button key="artifact" {...keyed('a', ui.showArtifact ? 'hide artifact' : 'full artifact')} onPress={() => void toggleArtifact(io)} />
         <Button key="back" label="back" role="dismiss" onPress={() => void io.ui.close({ id: DETAIL_ID })} />
       </Box>
       {ui.showArtifact ? (

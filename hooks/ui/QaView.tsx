@@ -8,6 +8,7 @@ import type { Ctx } from '../runtime/ctx.ts'
 import { answerQuestion, draftFromTurns, finishBrainstorm } from '../runtime/plan-brainstorm.ts'
 import { act } from './changes-actions.ts'
 import type { Els } from './els.ts'
+import { keyed } from './format.ts'
 
 export const showsQa = (rec: ChangeRecord): boolean =>
   rec.qa !== undefined && (!rec.qa.done || (rec.qa.capped && !isDone(rec, BRAINSTORM_ARTIFACT)))
@@ -29,7 +30,7 @@ export function QaView(els: Els, io: Io, ctx: Ctx, rec: ChangeRecord): RenderEle
           <Box key="qa-question"><Text bold>{open.question}</Text></Box>,
           <Box key="qa-why"><Text dimColor>{open.why}</Text></Box>,
           <Box key="qa-options" flexDirection="row" gap={1}>
-            {open.options.map((option, index) => <Button key={`qa-option:${index}`} label={option} hotkey={String(index + 1)} onPress={() => answer(option)} />)}
+            {open.options.map((option, index) => <Button key={`qa-option:${index}`} {...keyed(String(index + 1), option)} onPress={() => answer(option)} />)}
           </Box>,
           <Input key="qa-answer" label="or answer in your own words" placeholder="type, then Enter" onSubmit={value => answer(value)} />,
         ]}

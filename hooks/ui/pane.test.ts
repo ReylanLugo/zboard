@@ -25,6 +25,9 @@ for (const surface of SURFACES) {
     expect(await ui.find({ text: 'Running (1)' })).toBeDefined()
     expect(await labelOf(ui, 'card:1.1')).toBe('1.1 Parse tasks')
     expect(await ui.find({ text: /zboard:researcher sonnet 5\.5\/medium/ })).toBeDefined()
+    const toolbar = ['view', 'filter', 'comment', 'block', 'priority', 'changes']
+    expect(await Promise.all(toolbar.map(key => labelOf(ui, key))))
+      .toEqual(['[v] view', '[f] filter: all', '[c] comment', '[b] block', '[p] priority', '[o] changes'])
     await ui.unmount()
   })
 
@@ -77,10 +80,10 @@ for (const surface of SURFACES) {
     await stopAgent($, lastAgent(w))
     await stopAgent($, lastAgent(w))
     const ui = await mountPane($, surface)
-    for (let presses = 0; presses < 20 && (await labelOf(ui, 'filter')) !== 'filter: status: needs_decision'; presses += 1) {
+    for (let presses = 0; presses < 20 && (await labelOf(ui, 'filter')) !== '[f] filter: status: needs_decision'; presses += 1) {
       await ui.press({ key: 'filter' })
     }
-    expect(await labelOf(ui, 'filter')).toBe('filter: status: needs_decision')
+    expect(await labelOf(ui, 'filter')).toBe('[f] filter: status: needs_decision')
     expect(await ui.find({ key: 'card:1.1' })).toBeDefined()
     expect(await ui.find({ key: 'card:1.2' })).toBeUndefined()
     await ui.unmount()

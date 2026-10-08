@@ -8,7 +8,7 @@ import { cycleFilter, cycleView, raiseSelected, select, startComment, submitComm
 import type { Els, ViewProps } from './els.ts'
 import { filterLabel, visibleTasks } from './filter.ts'
 import type { HeaderSegment } from './format.ts'
-import { headerLine, headerRuler } from './format.ts'
+import { headerLine, headerRuler, keyed } from './format.ts'
 import { KanbanView } from './KanbanView.tsx'
 import { SwimlaneView } from './SwimlaneView.tsx'
 import { TreeView } from './TreeView.tsx'
@@ -21,12 +21,12 @@ function Toolbar(els: Els, io: Io, props: ViewProps): RenderElement {
   const { Box, Button } = els
   return (
     <Box key="toolbar" flexDirection="row" gap={1}>
-      <Button key="view" label="view" hotkey="v" onPress={() => void cycleView(io)} />
-      <Button key="filter" label={`filter: ${filterLabel(props.ui.filter)}`} hotkey="f" onPress={() => void cycleFilter(io)} />
-      <Button key="comment" label="comment" hotkey="c" onPress={() => void startComment(io)} />
-      <Button key="block" label="block" hotkey="b" onPress={() => void toggleSelectedBlock(io)} />
-      <Button key="priority" label="priority" hotkey="p" onPress={() => void raiseSelected(io)} />
-      <Button key="changes" label="changes" hotkey="o" onPress={() => void isolatePlan(io, 'ui.board.changes', () => openChanges(io, props.board.changeId ?? undefined), '')} />
+      <Button key="view" {...keyed('v', 'view')} onPress={() => void cycleView(io)} />
+      <Button key="filter" {...keyed('f', `filter: ${filterLabel(props.ui.filter)}`)} onPress={() => void cycleFilter(io)} />
+      <Button key="comment" {...keyed('c', 'comment')} onPress={() => void startComment(io)} />
+      <Button key="block" {...keyed('b', 'block')} onPress={() => void toggleSelectedBlock(io)} />
+      <Button key="priority" {...keyed('p', 'priority')} onPress={() => void raiseSelected(io)} />
+      <Button key="changes" {...keyed('o', 'changes')} onPress={() => void isolatePlan(io, 'ui.board.changes', () => openChanges(io, props.board.changeId ?? undefined), '')} />
     </Box>
   )
 }

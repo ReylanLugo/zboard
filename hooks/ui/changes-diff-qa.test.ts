@@ -86,7 +86,7 @@ for (const surface of SURFACES) {
     await stopAgent($, lastAgent(w), json({ question: 'Who uses it?', options: ['A', 'B'], why: 'scope' }))
     expect((await ui.find({ key: 'qa-question' }))?.text).toBe('Who uses it?')
     expect((await ui.find({ key: 'qa-why' }))?.text).toBe('scope')
-    expect(await labelOf(ui, 'qa-option:1')).toBe('B')
+    expect(await labelOf(ui, 'qa-option:1')).toBe('[2] B')
     expect(await ui.find({ key: 'qa-finish' })).toBeDefined()
     await ui.press({ key: 'qa-option:1' })
     expect(w.spawns[1]?.prompt).toContain('Answer: B')

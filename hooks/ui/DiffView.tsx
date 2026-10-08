@@ -7,6 +7,7 @@ import type { Ctx } from '../runtime/ctx.ts'
 import { acceptProposal, regenerateProposal, rejectProposal } from '../runtime/plan-apply.ts'
 import { act, startCompose } from './changes-actions.ts'
 import type { Els } from './els.ts'
+import { keyed } from './format.ts'
 import { THEME, diffLineColor, ink } from './theme.ts'
 
 /** Diff lines drawn per proposal file; a longer diff ends with a count of the lines left out. */
@@ -46,8 +47,8 @@ export function DiffView(els: Els, io: Io, ctx: Ctx, rec: ChangeRecord, proposal
       <Box key="diff-actions" flexDirection="row" gap={1}>
         {isStale
           ? <Button key="regenerate" label="regenerate" variant="primary" onPress={act(io, rec, 'regenerate', () => regenerateProposal(io, ctx, rec.id))} />
-          : <Button key="accept" label="accept" hotkey="a" variant="primary" onPress={act(io, rec, 'accept', () => acceptProposal(io, ctx, rec.id))} />}
-        <Button key="reject" label="reject" hotkey="z" onPress={act(io, rec, 'reject', () => rejectProposal(io, rec.id))} />
+          : <Button key="accept" {...keyed('a', 'accept')} variant="primary" onPress={act(io, rec, 'accept', () => acceptProposal(io, ctx, rec.id))} />}
+        <Button key="reject" {...keyed('z', 'reject')} onPress={act(io, rec, 'reject', () => rejectProposal(io, rec.id))} />
         <Button key="another" label="ask another version" onPress={act(io, rec, 'another', () => startCompose(io, 'note'))} />
       </Box>
     </Box>

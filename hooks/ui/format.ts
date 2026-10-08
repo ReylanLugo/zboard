@@ -15,6 +15,13 @@ const STEPS: readonly (readonly [Phase, string])[] = [['research', 'R'], ['plan'
 const RED_OUTCOMES = new Set(['error', 'interrupted', 'denied'])
 
 export const viewLabel = (view: View): string => VIEW_LABEL[view]
+
+/** A hotkey button's label: the key it answers to in brackets, then its text (`[d] draft next`). */
+export const keyLabel = (hotkey: string, label: string): string => `[${hotkey}] ${label}`
+
+/** The `hotkey` and `label` props of a button, so the shown key can never drift from the bound one. */
+export const keyed = (hotkey: string, label: string): { readonly hotkey: string; readonly label: string } =>
+  ({ hotkey, label: keyLabel(hotkey, label) })
 const plural = (count: number, word: string): string => `${count} ${word}${count === 1 ? '' : 's'}`
 
 const tasksOf = (board: Board): Task[] =>

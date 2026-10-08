@@ -4,7 +4,7 @@ import type { EventBody } from '../domain/events.ts'
 import { project } from '../domain/project.ts'
 import { evs, loaded, parsed } from '../testing/factories.ts'
 import { filterLabel, nextFilter, visibleTasks } from './filter.ts'
-import { cardLines, cardRows, formatElapsed, formatTokens, headerLine, headerRuler, heartbeat, progressBar, stepper } from './format.ts'
+import { cardLines, cardRows, formatElapsed, formatTokens, headerLine, headerRuler, heartbeat, keyLabel, keyed, progressBar, stepper } from './format.ts'
 import { THEME, roleColor } from './theme.ts'
 
 const started = (taskId: string, agentId: string, phase: 'code' | 'review' | 'refactor' = 'code'): EventBody => ({
@@ -168,4 +168,10 @@ test('filters cycle through statuses, agents and sections and select matching ta
   expect(visibleTasks(board, filter).map(task => task.id)).toEqual(['1.1'])
   expect(visibleTasks(board, { kind: 'section', value: '2. Later' }).map(task => task.id)).toEqual(['2.1'])
   expect(filterLabel({ kind: 'none' })).toBe('all')
+})
+
+test('a hotkey button label leads with its key in brackets', () => {
+  expect(keyLabel('d', 'draft next')).toBe('[d] draft next')
+  expect(keyLabel('1', 'A')).toBe('[1] A')
+  expect(keyed('c', 'comment')).toEqual({ hotkey: 'c', label: '[c] comment' })
 })

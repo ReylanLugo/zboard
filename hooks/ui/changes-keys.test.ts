@@ -9,6 +9,7 @@ import { focusChange } from './ChangesPane.tsx'
 import { boot, json, lastAgent, setupDemo, stopAgent, zboard } from '../testing/zboard.ts'
 
 const hotkey = async (ui: Awaited<ReturnType<typeof mountPane>>, key: string) => (await ui.find({ key }))?.props.hotkey
+const label = async (ui: Awaited<ReturnType<typeof mountPane>>, key: string) => (await ui.find({ key }))?.props.label
 
 for (const surface of SURFACES) {
   test(`${surface}: every viewer action has its key`, { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
@@ -20,11 +21,14 @@ for (const surface of SURFACES) {
     const ui = await mountPane($, surface, 'zboard-changes')
     const keys = [['new', 'n'], ['comment', 'c'], ['draft', 'd'], ['explain', 'e'], ['critique', 'x'], ['run', 'r']]
     for (const [key, letter] of keys) expect(await hotkey(ui, key ?? '')).toBe(letter)
+    const labels = [['new', '[n] new change'], ['comment', '[c] comment'], ['draft', '[d] draft next'], ['explain', '[e] explain'], ['critique', '[x] critique'], ['run', '[r] ▶ run']]
+    for (const [key, shown] of labels) expect(await label(ui, key ?? '')).toBe(shown)
     await ui.press({ key: 'comment' })
     await ui.input({ key: 'compose', text: 'tighten' })
     await stopAgent($, lastAgent(w), json({ files: [{ path: 'openspec/changes/a/plan.md', content: '# Plan v2\n' }], notes: '' }))
     expect(await hotkey(ui, 'accept')).toBe('a')
     expect(await hotkey(ui, 'reject')).toBe('z')
+    expect([await label(ui, 'accept'), await label(ui, 'reject')]).toEqual(['[a] accept', '[z] reject'])
     await ui.unmount()
   })
 
