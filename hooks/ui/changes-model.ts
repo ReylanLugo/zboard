@@ -38,8 +38,11 @@ const progressOf = (rec: ChangeRecord): string => {
   return ` · ${progressBar(done, rec.tasks.length)} ${done}/${rec.tasks.length}`
 }
 
-export const rowLabel = (rec: ChangeRecord): string =>
-  `${STAGE_ICONS[rec.stage]} ${rec.id} · ${rec.stage}${progressOf(rec)}${rec.listError === undefined ? '' : ' · ⚠ error'}${rec.activeAgent === undefined ? '' : ` · ${rec.activeAgent.role} running`}`
+/** A change row without its stage icon; the viewer draws the icon apart, in the stage color. */
+export const rowText = (rec: ChangeRecord): string =>
+  `${rec.id} · ${rec.stage}${progressOf(rec)}${rec.listError === undefined ? '' : ' · ⚠ error'}${rec.activeAgent === undefined ? '' : ` · ${rec.activeAgent.role} running`}`
+
+export const rowLabel = (rec: ChangeRecord): string => `${STAGE_ICONS[rec.stage]} ${rowText(rec)}`
 
 /** The CLI found no `openspec/` from the repository root: the viewer offers to initialize it. */
 export const isNotInitialized = (plan: PlanBoard): boolean => isNoOpenspecRoot(plan.listError)
@@ -80,8 +83,6 @@ export function stepperMarks(rec: ChangeRecord): { readonly id: string; readonly
     mark: artifact.status === 'done' ? '●' : artifact.id === current ? '◐' : '○',
   }))
 }
-
-export const stepperText = (rec: ChangeRecord): string => stepperMarks(rec).map(step => `${step.mark} ${step.id}`).join('  ')
 
 export function readinessLine(rec: ChangeRecord): string {
   if (rec.readiness.length === 0) return 'readiness: not computed yet'

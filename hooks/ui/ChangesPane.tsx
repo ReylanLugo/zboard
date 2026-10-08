@@ -12,8 +12,9 @@ import { readableError } from '../plan/errors.ts'
 import { initOpenspec } from '../runtime/plan-init.ts'
 import { isolatePlan } from '../runtime/plan-store.ts'
 import { selectChange, setChanges, setTab, startCompose, submitCompose, toggleRaw } from './changes-actions.ts'
-import { GROUPS, defaultArtifact, groupRows, groupTitle, headerText, isNotInitialized, listIssue, rowLabel, visibleChanges } from './changes-model.ts'
+import { GROUPS, STAGE_ICONS, defaultArtifact, groupRows, groupTitle, headerText, isNotInitialized, listIssue, rowText, visibleChanges } from './changes-model.ts'
 import type { Els } from './els.ts'
+import { THEME, stageColor } from './theme.ts'
 
 export interface ChangesProps {
   readonly plan: PlanBoard
@@ -51,7 +52,12 @@ function List(els: Els, io: Io, props: ChangesProps): RenderElement {
       {GROUPS.map(group => (
         <Box key={`section:${group.id}`} flexDirection="column">
           <Box key={`group:${group.id}`}><Text bold>{groupTitle(props.plan, group)}</Text></Box>
-          {groupRows(props.plan, group.id).map(rec => <Button key={`${CHANGE_PREFIX}${rec.id}`} label={rowLabel(rec)} plain onPress={() => void selectChange(io, rec.id)} />)}
+          {groupRows(props.plan, group.id).map(rec => (
+            <Box key={`row:${rec.id}`} flexDirection="row" gap={1}>
+              <Box key={`icon:${rec.id}`}><Text color={stageColor(rec.stage)}>{STAGE_ICONS[rec.stage]}</Text></Box>
+              <Button key={`${CHANGE_PREFIX}${rec.id}`} label={rowText(rec)} plain onPress={() => void selectChange(io, rec.id)} />
+            </Box>
+          ))}
         </Box>
       ))}
     </Box>
@@ -63,9 +69,9 @@ function Errors(els: Els, plan: PlanBoard, ui: ChangesUi): RenderElement[] {
   const { Box, Code, Text } = els
   const issue = listIssue(plan)
   return [
-    ...(issue === undefined ? [] : [<Box key="list-error"><Text>{`⚠ ${readableError(issue)}`}</Text></Box>]),
+    ...(issue === undefined ? [] : [<Box key="list-error"><Text color={THEME.brick}>{`⚠ ${readableError(issue)}`}</Text></Box>]),
     ...(issue === undefined || !ui.showRaw ? [] : [<Box key="raw-list-error"><Code source={issue} /></Box>]),
-    ...plan.errors.slice(-3).map((error, index) => <Box key={`error:${index}`}><Text dimColor>{`⚠ ${error.hook}: ${readableError(error.message)}`}</Text></Box>),
+    ...plan.errors.slice(-3).map((error, index) => <Box key={`error:${index}`}><Text color={THEME.brick} dimColor>{`⚠ ${error.hook}: ${readableError(error.message)}`}</Text></Box>),
   ]
 }
 
@@ -84,7 +90,7 @@ function InitCard(els: Els, io: Io, props: ChangesProps): RenderElement {
   const { Box, Button, Code, Text } = els
   const failed = props.ui.initError ?? null
   return (
-    <Box key="init-card" flexDirection="column" gap={1}>
+    <Box key="init-card" flexDirection="column" gap={1} borderStyle="round" borderColor={THEME.blueprint} paddingX={1}>
       <Box key="init-title"><Text bold>{INIT_TITLE}</Text></Box>
       <Box key="init-why" flexDirection="column">
         {INIT_WHY.map((line, index) => <Box key={`init-why-${index + 1}`}><Text dimColor>{line}</Text></Box>)}
@@ -93,7 +99,7 @@ function InitCard(els: Els, io: Io, props: ChangesProps): RenderElement {
         <Button key="init" label="Initialize OpenSpec here" hotkey="i" variant="primary" onPress={() => void isolatePlan(io, 'ui.init', () => initOpenspec(io), undefined)} />
         {failed === null ? null : RawToggle(els, io, props.ui)}
       </Box>
-      {failed === null ? null : <Box key="init-error"><Text>{`⚠ OpenSpec init failed: ${readableError(failed)}`}</Text></Box>}
+      {failed === null ? null : <Box key="init-error"><Text color={THEME.brick}>{`⚠ OpenSpec init failed: ${readableError(failed)}`}</Text></Box>}
       {failed === null || !props.ui.showRaw ? null : <Box key="raw-init-error"><Code source={failed} /></Box>}
       <Box key="init-root"><Text dimColor>{props.root}</Text></Box>
     </Box>
@@ -143,7 +149,7 @@ function ChangesView(els: Els, surface: Surface, io: Io, ctx: Ctx, props: Change
   const { Box, Input, Text } = els
   const rec = props.ui.selected === null ? undefined : props.plan.changes[props.ui.selected]
   const composing = props.ui.composing
-  const header = <Box key="changes-header"><Text bold>{headerText(props.plan)}</Text></Box>
+  const header = <Box key="changes-header"><Text bold color={THEME.blueprint}>{headerText(props.plan)}</Text></Box>
   if (isNotInitialized(props.plan)) return <Box flexDirection="column">{header}{Errors(els, props.plan, props.ui)}{InitCard(els, io, props)}</Box>
   return (
     <Box flexDirection="column">

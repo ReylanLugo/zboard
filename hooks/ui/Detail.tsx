@@ -7,6 +7,7 @@ import type { UiState } from '../runtime/ui-types.ts'
 import { setUi, toggleArtifact } from './actions.ts'
 import { detailSections, latestArtifactKey } from './detail-model.ts'
 import type { Els } from './els.ts'
+import { ink, statusColor } from './theme.ts'
 
 const ARTIFACT_PREVIEW_CHARS = 4_000
 
@@ -31,7 +32,7 @@ export function renderDetail(els: unknown, io: Io, props: DetailProps): RenderEl
   const title = `${task.id} ${task.title} — ${task.status}${task.phase === null ? '' : ` (${task.phase})`}`
   return (
     <Box flexDirection="column">
-      <Box key="detail-title"><Text bold>{title}</Text></Box>
+      <Box key="detail-title"><Text bold {...ink(statusColor(task.status))}>{title}</Text></Box>
       {detailSections(task, now).map(section => (
         <Box key={`detail:${section.title}`} flexDirection="column">
           <Text bold>{section.title}</Text>

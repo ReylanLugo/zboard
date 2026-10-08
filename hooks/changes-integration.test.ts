@@ -3,7 +3,7 @@ import { expect, test } from 'claude-code/testing'
 import { PLUGIN_TEST_TIMEOUT_MS } from './testing/timeouts.ts'
 
 import { READY_FILES, READY_SPEC, scriptOpenspec, seedChange } from './testing/openspec.ts'
-import { labelOf, mountPane } from './testing/ui.ts'
+import { mountPane, rowOf } from './testing/ui.ts'
 import { installWorld } from './testing/world.ts'
 import type { World } from './testing/world.ts'
 import { GREEN, boot, json, lastAgent, scriptGit, scriptPtest, stopAgent, zboard } from './testing/zboard.ts'
@@ -69,7 +69,7 @@ test('a change goes from creation to archive through the viewer', { timeoutMs: P
   await ui.press({ key: 'accept' })
   await ui.press({ key: 'archive' })
   expect(w.runs.filter(argv => argv[0] === 'openspec' && argv[1] === 'archive')).toEqual([['openspec', 'archive', 'add-export', '--yes', '--json']])
-  expect(await labelOf(ui, 'change:2026-10-06-add-export')).toBe('✓ 2026-10-06-add-export · archived')
+  expect(await rowOf(ui, '2026-10-06-add-export')).toBe('✓ 2026-10-06-add-export · archived')
   await ui.unmount()
 })
 
@@ -138,6 +138,6 @@ test('an archive failure is shown and nothing is archived', { timeoutMs: PLUGIN_
   await stopAgent($, lastAgent(w), json({ findings: [PROVEN] }))
   await ui.press({ key: 'archive' })
   expect(w.toasts.at(-1)).toBe('zboard: openspec archive failed: delta conflict: requirement "Export CSV" already exists')
-  expect(await labelOf(ui, 'change:a')).toBe('◆ a · retrospective · ▓▓▓▓▓ 1/1')
+  expect(await rowOf(ui, 'a')).toBe('◆ a · retrospective · ▓▓▓▓▓ 1/1')
   await ui.unmount()
 })

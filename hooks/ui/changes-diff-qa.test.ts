@@ -3,7 +3,8 @@ import { expect, test } from 'claude-code/testing'
 import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
 
 import { READY_FILES, scriptOpenspec, seedChange } from '../testing/openspec.ts'
-import { SURFACES, labelOf, findIn, mountPane } from '../testing/ui.ts'
+import { SURFACES, labelOf, mountPane, textsIn } from '../testing/ui.ts'
+import { THEME } from './theme.ts'
 import { installWorld } from '../testing/world.ts'
 import { boot, json, lastAgent, scriptGit, stopAgent, zboard } from '../testing/zboard.ts'
 
@@ -24,9 +25,9 @@ for (const surface of SURFACES) {
       await ui.press({ key: 'comment' })
       await ui.input({ key: 'compose', text: `make it ${version}` })
       await stopAgent($, lastAgent(w), designAnswer(`## Context\n\n${version}\n`))
-      const diff = await findIn(ui, `diff:${DESIGN}`, 'Code')
-      expect(diff?.props.format).toBe('diff')
-      expect(String(diff?.props.source)).toContain(`+${version}`)
+      const diff = await textsIn(ui, `diff-body:${DESIGN}`)
+      expect(diff.some(line => line.text.startsWith('@@'))).toBe(true)
+      expect(diff.find(line => line.text === `+${version}`)?.props.color).toBe(THEME.moss)
       expect((await ui.find({ key: 'accept' }))?.props.hotkey).toBe('a')
       await ui.press({ key: 'accept' })
     }

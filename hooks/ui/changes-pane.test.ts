@@ -5,7 +5,7 @@ import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
 import { projectPlan } from '../plan/plan-project.ts'
 import { READY_FILES, scriptOpenspec, seedChange } from '../testing/openspec.ts'
 import { listing } from '../testing/plan.ts'
-import { SURFACES, labelOf, mountPane } from '../testing/ui.ts'
+import { SURFACES, mountPane, rowOf } from '../testing/ui.ts'
 import { argvIs, installWorld } from '../testing/world.ts'
 import { boot, setupDemo, zboard } from '../testing/zboard.ts'
 import { headerText } from './changes-model.ts'
@@ -24,9 +24,9 @@ for (const surface of SURFACES) {
     expect((await ui.find({ key: 'group:active' }))?.text).toBe('Active   (1)')
     expect((await ui.find({ key: 'group:drafts' }))?.text).toBe('Drafts   (1)')
     expect((await ui.find({ key: 'group:archived' }))?.text).toBe('Archived (1)')
-    expect(await labelOf(ui, 'change:a')).toBe('● a · ready · ░░░░░ 0/1')
-    expect(await labelOf(ui, 'change:b')).toBe('◐ b · authoring')
-    expect(await labelOf(ui, 'change:2026-01-01-c')).toBe('✓ 2026-01-01-c · archived')
+    expect(await rowOf(ui, 'a')).toBe('● a · ready · ░░░░░ 0/1')
+    expect(await rowOf(ui, 'b')).toBe('◐ b · authoring')
+    expect(await rowOf(ui, '2026-01-01-c')).toBe('✓ 2026-01-01-c · archived')
     await ui.unmount()
   })
 
@@ -42,7 +42,7 @@ for (const surface of SURFACES) {
     await ui.input({ key: 'compose', text: 'add-export' })
     expect(w.runs).toContainEqual(['openspec', 'new', 'change', 'add-export', '--schema', 'superpowers-bridge'])
     expect(w.toasts).toContain('zboard: created add-export')
-    expect(await labelOf(ui, 'change:add-export')).toBe('✎ add-export · draft')
+    expect(await rowOf(ui, 'add-export')).toBe('✎ add-export · draft')
     expect((await ui.find({ key: 'detail-title' }))?.text).toBe('add-export · draft')
     await ui.unmount()
   })
@@ -56,8 +56,8 @@ for (const surface of SURFACES) {
     await boot($)
     await zboard($, 'changes broken')
     const ui = await mountPane($, surface, 'zboard-changes')
-    expect(await labelOf(ui, 'change:broken')).toBe('✎ broken · draft · ⚠ error')
-    expect(await labelOf(ui, 'change:a')).toBe('● a · ready · ░░░░░ 0/1')
+    expect(await rowOf(ui, 'broken')).toBe('✎ broken · draft · ⚠ error')
+    expect(await rowOf(ui, 'a')).toBe('● a · ready · ░░░░░ 0/1')
     expect((await ui.find({ key: 'change-error' }))?.text).toBe('⚠ boom')
     await ui.unmount()
     expect(await zboard($, '')).toBe('board opened.')

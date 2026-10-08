@@ -15,6 +15,7 @@ import { isolatePlan } from '../runtime/plan-store.ts'
 import { proposeVerifyMd, rejudge, resolveFinding, verifyChange } from '../runtime/plan-verify.ts'
 import { act } from './changes-actions.ts'
 import type { Els } from './els.ts'
+import { THEME, ink } from './theme.ts'
 
 export function VerifyTab(els: Els, io: Io, ctx: Ctx, rec: ChangeRecord): RenderElement {
   const { Box, Button, Text } = els
@@ -24,10 +25,10 @@ export function VerifyTab(els: Els, io: Io, ctx: Ctx, rec: ChangeRecord): Render
     <Button key={key} label={label} dimColor={!gate.enabled} onPress={act(io, rec, key, work)} />
   return (
     <Box key="tab-verify" flexDirection="column">
-      <Box key="verify-state"><Text bold>{rec.verify === undefined ? 'No verify run yet.' : `verify run ${rec.verify.runs} · ${rec.verify.passed ? 'passed' : 'not passed'}`}</Text></Box>
+      <Box key="verify-state"><Text bold {...ink(rec.verify === undefined ? undefined : rec.verify.passed ? THEME.moss : THEME.brick)}>{rec.verify === undefined ? 'No verify run yet.' : `verify run ${rec.verify.runs} · ${rec.verify.passed ? 'passed' : 'not passed'}`}</Text></Box>
       {findings.map(f => (
         <Box key={`finding:${f.id}`} flexDirection="column">
-          <Text>{`${f.requirement}${f.scenario === undefined ? '' : ` / ${f.scenario}`} · ${f.verdict}${f.resolution === undefined ? '' : ` → ${f.resolution}`}${f.linkedTask === undefined ? '' : ` (task ${f.linkedTask})`}`}</Text>
+          <Text {...ink(f.verdict === 'true' ? THEME.moss : f.resolution === undefined ? THEME.brick : THEME.steel)}>{`${f.requirement}${f.scenario === undefined ? '' : ` / ${f.scenario}`} · ${f.verdict}${f.resolution === undefined ? '' : ` → ${f.resolution}`}${f.linkedTask === undefined ? '' : ` (task ${f.linkedTask})`}`}</Text>
           <Text dimColor>{(Array.isArray(f.evidence) ? f.evidence.join('; ') : '') || 'no evidence'}</Text>
           {f.verdict === 'true' || f.resolution !== undefined ? null : (
             <Box key={`resolutions:${f.id}`} flexDirection="row" gap={1}>

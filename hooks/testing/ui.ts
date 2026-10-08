@@ -17,6 +17,10 @@ export const labelOf = async (ui: Finder, key: string): Promise<string | undefin
   return typeof found?.props.label === 'string' ? found.props.label : found?.text
 }
 
+/** A change row as read: its stage icon (a colored Text) and its Button label, joined by a space. */
+export const rowOf = async (ui: Finder, id: string): Promise<string> =>
+  `${(await ui.find({ key: `icon:${id}` }))?.text ?? ''} ${(await labelOf(ui, `change:${id}`)) ?? ''}`
+
 type Node = { readonly type?: unknown; readonly props?: Record<string, unknown>; readonly children?: readonly unknown[] }
 
 const descendant = (nodes: readonly unknown[], type: string): Node | undefined => {

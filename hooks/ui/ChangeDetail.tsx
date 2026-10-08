@@ -14,12 +14,13 @@ import { runChange } from '../runtime/plan-run.ts'
 import type { ChangesTab, ChangesUi } from '../runtime/ui-types.ts'
 import { CHANGES_TABS } from '../runtime/ui-types.ts'
 import { act, composeComment, selectArtifact, setTab } from './changes-actions.ts'
-import { defaultArtifact, historyRows, readinessLine, stepperMarks, stepperText, uncoveredRequirements } from './changes-model.ts'
+import { defaultArtifact, historyRows, readinessLine, stepperMarks, uncoveredRequirements } from './changes-model.ts'
 import { DiagramsTab } from './DiagramsTab.tsx'
 import { DiffView } from './DiffView.tsx'
 import { QaView, showsQa } from './QaView.tsx'
 import { CritiqueList, ForecastView, RetryView, VerifyTab } from './VerifyTab.tsx'
 import type { Els } from './els.ts'
+import { THEME, artifactColor } from './theme.ts'
 
 export interface DetailProps {
   readonly rec: ChangeRecord
@@ -55,7 +56,7 @@ function ListError(els: Els, rec: ChangeRecord, ui: ChangesUi): RenderElement[] 
   const { Box, Code, Text } = els
   if (rec.listError === undefined) return []
   return [
-    <Box key="change-error"><Text>{`⚠ ${readableError(rec.listError)}`}</Text></Box>,
+    <Box key="change-error"><Text color={THEME.brick}>{`⚠ ${readableError(rec.listError)}`}</Text></Box>,
     ...(ui.showRaw ? [<Box key="raw-change-error"><Code source={rec.listError} /></Box>] : []),
   ]
 }
@@ -67,16 +68,21 @@ function Header(els: Els, rec: ChangeRecord, docs: ChangeDocs, ui: ChangesUi): R
     <Box key="detail-title"><Text bold>{`${rec.id} · ${rec.stage}`}</Text></Box>,
     ...(schema === '' ? [] : [<Box key="detail-schema"><Text dimColor>{`schema · ${schema}`}</Text></Box>]),
     ...ListError(els, rec, ui),
-    ...(docs.error === undefined ? [] : [<Box key="docs-error"><Text>{`⚠ ${docs.error}`}</Text></Box>]),
-    ...rec.errors.slice(-3).map((error, index) => <Box key={`change-error:${index}`}><Text dimColor>{`⚠ ${error.hook}: ${readableError(error.message)}`}</Text></Box>),
+    ...(docs.error === undefined ? [] : [<Box key="docs-error"><Text color={THEME.brick}>{`⚠ ${docs.error}`}</Text></Box>]),
+    ...rec.errors.slice(-3).map((error, index) => <Box key={`change-error:${index}`}><Text color={THEME.brick} dimColor>{`⚠ ${error.hook}: ${readableError(error.message)}`}</Text></Box>),
   ]
 }
 
 function Stepper(els: Els, io: Io, rec: ChangeRecord, ui: ChangesUi): RenderElement[] {
   const { Box, Button, Text } = els
   const target = ui.artifact ?? defaultArtifact(rec)
+  const marks = stepperMarks(rec)
   return [
-    <Box key="stepper"><Text>{stepperText(rec) || 'no CLI status yet'}</Text></Box>,
+    <Box key="stepper" flexDirection="row">
+      {marks.length === 0
+        ? <Text dimColor>no CLI status yet</Text>
+        : marks.map((step, index) => <Text color={artifactColor(step.mark)}>{`${index === 0 ? '' : '  '}${step.mark} ${step.id}`}</Text>)}
+    </Box>,
     <Box key="artifacts" flexDirection="row" gap={1} flexWrap="wrap">
       {stepperMarks(rec).map(step => (
         <Button key={`artifact:${step.id}`} label={step.id === target ? `[${step.id}]` : step.id} plain onPress={() => void selectArtifact(io, step.id)} />
@@ -87,9 +93,11 @@ function Stepper(els: Els, io: Io, rec: ChangeRecord, ui: ChangesUi): RenderElem
 
 function Readiness(els: Els, rec: ChangeRecord): RenderElement[] {
   const { Box, Text } = els
+  const isReady = rec.readiness.length > 0 && rec.readiness.every(check => check.ok)
+  const color = rec.readiness.length === 0 ? THEME.steel : isReady ? THEME.moss : THEME.brick
   return [
-    <Box key="readiness"><Text bold>{readinessLine(rec)}</Text></Box>,
-    ...rec.readiness.filter(check => !check.ok).map(check => <Box key={`check:${check.id}`}><Text>{`✗ ${check.id}: ${check.detail}`}</Text></Box>),
+    <Box key="readiness"><Text bold color={color}>{readinessLine(rec)}</Text></Box>,
+    ...rec.readiness.filter(check => !check.ok).map(check => <Box key={`check:${check.id}`}><Text color={THEME.brick}>{`✗ ${check.id}: ${check.detail}`}</Text></Box>),
   ]
 }
 
