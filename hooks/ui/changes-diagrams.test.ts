@@ -71,7 +71,7 @@ for (const surface of SURFACES) {
     await opened(w, $)
     const ui = await mountPane($, surface, 'zboard-changes')
     await ui.press({ key: 'explain' })
-    await stopAgent($, lastAgent(w), explanation(1))
+    await stopAgent($, w, lastAgent(w), explanation(1))
     await ui.press({ key: 'tab:diagrams' })
     expect(String((await findIn(ui, 'diagram:0', 'Code'))?.props.source)).toBe('graph TD; A0-->B0')
     expect((await ui.find({ key: 'diagram-hint:0' }))?.text).toBe('Install mermaid-cli to draw this diagram: npm i -g @mermaid-js/mermaid-cli')
@@ -86,7 +86,7 @@ for (const surface of SURFACES) {
     await opened(w, $)
     const ui = await mountPane($, surface, 'zboard-changes')
     await ui.press({ key: 'explain' })
-    await stopAgent($, lastAgent(w), explanation(2))
+    await stopAgent($, w, lastAgent(w), explanation(2))
     await ui.press({ key: 'tab:diagrams' })
     if (surface === 'desktop') {
       expect((await ui.find({ key: 'diagram-hint:0' }))?.text).toContain('npm i -g @mermaid-js/mermaid-cli')

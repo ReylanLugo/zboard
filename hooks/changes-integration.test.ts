@@ -32,21 +32,21 @@ test('a change goes from creation to archive through the viewer', { timeoutMs: P
   await ui.press({ key: 'new' })
   await ui.input({ key: 'compose', text: 'add-export' })
   await ui.press({ key: 'draft' })
-  await stopAgent($, lastAgent(w), json({ question: 'CSV or TSV?', options: ['CSV', 'TSV'], why: 'format' }))
+  await stopAgent($, w, lastAgent(w), json({ question: 'CSV or TSV?', options: ['CSV', 'TSV'], why: 'format' }))
   await ui.press({ key: 'qa-option:0' })
-  await stopAgent($, lastAgent(w), json({ done: true, brainstorm: '# Brainstorm\n\nCSV.\n' }))
+  await stopAgent($, w, lastAgent(w), json({ done: true, brainstorm: '# Brainstorm\n\nCSV.\n' }))
   await ui.press({ key: 'accept' })
   const artifacts: readonly (readonly [string, string])[] = [
     ['proposal.md', '## Why\n\nExport data.\n'], ['design.md', '## Context\n\nCSV.\n'], ['specs/export/spec.md', READY_SPEC], ['tasks.md', TASKS],
   ]
   for (const [path, content] of artifacts) {
     await ui.press({ key: 'draft' })
-    await stopAgent($, lastAgent(w), answer(path, content))
+    await stopAgent($, w, lastAgent(w), answer(path, content))
     await ui.press({ key: 'accept' })
   }
   await ui.press({ key: 'draft' })
   await ui.press({ key: 'forecast-confirm' })
-  await stopAgent($, lastAgent(w), answer('plan.md', PLAN))
+  await stopAgent($, w, lastAgent(w), answer('plan.md', PLAN))
   await ui.press({ key: 'accept' })
   expect(w.runs.filter(argv => argv[1] === 'commit').map(argv => argv[4])).toEqual([
     'docs(add-export): brainstorm rev 1', 'docs(add-export): proposal rev 1', 'docs(add-export): design rev 1',
@@ -60,12 +60,12 @@ test('a change goes from creation to archive through the viewer', { timeoutMs: P
   await ui.press({ key: 'tab:verify' })
   await ui.press({ key: 'verify' })
   provable(w)
-  await stopAgent($, lastAgent(w), json({ findings: [PROVEN] }))
+  await stopAgent($, w, lastAgent(w), json({ findings: [PROVEN] }))
   expect((await ui.find({ key: 'verify-state' }))?.text).toBe('verify run 1 · passed')
   await ui.press({ key: 'verify-md' })
   await ui.press({ key: 'accept' })
   await ui.press({ key: 'retrospective' })
-  await stopAgent($, lastAgent(w), answer('retrospective.md', '# Retrospective\n'))
+  await stopAgent($, w, lastAgent(w), answer('retrospective.md', '# Retrospective\n'))
   await ui.press({ key: 'accept' })
   await ui.press({ key: 'archive' })
   expect(w.runs.filter(argv => argv[0] === 'openspec' && argv[1] === 'archive')).toEqual([['openspec', 'archive', 'add-export', '--yes', '--json']])
@@ -99,7 +99,7 @@ test('an injected comment stays data and every escaping path is refused', { time
     await ui.press({ key: 'comment' })
     await ui.input({ key: 'compose', text: INJECTION })
     expect(w.spawns.at(-1)?.prompt).toContain(`<zboard-data label="user note" trust="untrusted">\n${INJECTION}\n</zboard-data>`)
-    await stopAgent($, lastAgent(w), json({ files: [{ path, content: 'pwned' }], notes: '' }))
+    await stopAgent($, w, lastAgent(w), json({ files: [{ path, content: 'pwned' }], notes: '' }))
     expect(await ui.find({ key: 'diff' })).toBeUndefined()
     expect(w.toasts.at(-1)).toMatch(new RegExp(`^zboard: refused path ${path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`))
   }
@@ -118,7 +118,7 @@ test('a true verdict without evidence never enables archive', { timeoutMs: PLUGI
   const ui = await mountPane($, 'desktop', 'zboard-changes')
   await ui.press({ key: 'tab:verify' })
   await ui.press({ key: 'verify' })
-  await stopAgent($, lastAgent(w), json({ findings: [{ requirement: 'Export CSV', verdict: 'true', evidence: [] }] }))
+  await stopAgent($, w, lastAgent(w), json({ findings: [{ requirement: 'Export CSV', verdict: 'true', evidence: [] }] }))
   expect((await ui.find({ key: 'finding:r:export-csv' }))?.text).toContain('Export CSV · no_evidence')
   expect((await ui.find({ key: 'archive-reason' }))?.text).toBe('archive: no passed verify run')
   await ui.unmount()
@@ -135,7 +135,7 @@ test('an archive failure is shown and nothing is archived', { timeoutMs: PLUGIN_
   await ui.press({ key: 'tab:verify' })
   await ui.press({ key: 'verify' })
   provable(w)
-  await stopAgent($, lastAgent(w), json({ findings: [PROVEN] }))
+  await stopAgent($, w, lastAgent(w), json({ findings: [PROVEN] }))
   await ui.press({ key: 'archive' })
   expect(w.toasts.at(-1)).toBe('zboard: openspec archive failed: delta conflict: requirement "Export CSV" already exists')
   expect(await rowOf(ui, 'a')).toBe('◆ a · retrospective · ▓▓▓▓▓ 1/1')

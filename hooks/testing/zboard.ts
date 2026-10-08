@@ -3,7 +3,7 @@ import type { Engine } from 'claude-code/testing'
 import type { Task } from '../domain/types.ts'
 import type { StatusView } from '../tools/views.ts'
 import type { ProcessAnswer, World } from './world.ts'
-import { argvIs } from './world.ts'
+import { HANDBACK_TOOL, argvIs, handbackRow } from './world.ts'
 
 export const TASKS_PATH = '/repo/openspec/changes/demo/tasks.md'
 export const ONE_TASK = '## 1. Core\n\n- [ ] 1.1 Parse tasks\n'
@@ -102,14 +102,33 @@ export function setupDemo(w: World, tasksMd: string = ONE_TASK): Map<string, str
   return scriptGit(w)
 }
 
-export async function stopAgent($: Engine, agentId: string, answer?: string): Promise<void> {
+/**
+ * Ends an agent as the engine does: a background subagent reports through the
+ * SubagentHandback tool (its transcript holds the call), then stops with no text
+ * of its own, so `last_assistant_message` is absent. Timers the stop set run after.
+ */
+export async function stopAgent($: Engine, w: World, agentId: string, answer?: string): Promise<void> {
+  if (answer !== undefined) {
+    w.transcripts.set(agentId, [...(w.transcripts.get(agentId) ?? []), handbackRow(answer)])
+    await $.tool.call({ tool: HANDBACK_TOOL, message: answer, agentId } as never)
+  }
+  await fireStop($, w, agentId)
+}
+
+/** The legacy ending: the agent's final text arrives as `last_assistant_message`. */
+export async function stopAgentWithText($: Engine, w: World, agentId: string, answer: string): Promise<void> {
+  await fireStop($, w, agentId, answer)
+}
+
+async function fireStop($: Engine, w: World, agentId: string, text?: string): Promise<void> {
   await $.classic.SubagentStop({
     stop_hook_active: false,
     agent_id: agentId,
     agent_transcript_path: `/t/${agentId}.jsonl`,
     agent_type: 'zboard',
-    ...(answer === undefined ? {} : { last_assistant_message: answer }),
+    ...(text === undefined ? {} : { last_assistant_message: text }),
   })
+  await w.clock.advance(0)
 }
 
 export const lastAgent = (w: World): string => w.spawns.at(-1)?.agentId ?? ''

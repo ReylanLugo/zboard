@@ -50,7 +50,7 @@ test('a comment added before the next phase spawns is in that spawn prompt', { t
   await boot($)
   await zboard($, 'run demo')
   await callTool($, 'board_comment', { taskId: '1.1', text: 'keep CRLF intact' })
-  await stopAgent($, lastAgent(w), ANSWERS.research)
+  await stopAgent($, w, lastAgent(w), ANSWERS.research)
   expect(w.spawns[1]?.prompt).toContain('<zboard-comment author="main"')
   expect(w.spawns[1]?.prompt).toContain('keep CRLF intact</zboard-comment>')
   expect((await taskOf($, '1.1')).comments[0]?.deliveredTo).toBe('zboard:planner')

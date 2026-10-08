@@ -75,7 +75,7 @@ for (const surface of SURFACES) {
     await ui.press({ key: 'artifact:design' })
     await ui.press({ key: 'comment' })
     await ui.input({ key: 'compose', text: 'tighter' })
-    await stopAgent($, lastAgent(w), json({ files: [{ path: DESIGN, content: '## Context\n\nA tight exporter.\n' }], notes: 'tightened' }))
+    await stopAgent($, w, lastAgent(w), json({ files: [{ path: DESIGN, content: '## Context\n\nA tight exporter.\n' }], notes: 'tightened' }))
     expect((await ui.find({ key: `diff-body:${DESIGN}` }))?.props).toMatchObject({ borderStyle: 'round', borderColor: THEME.steel })
     const lines = await textsIn(ui, `diff-body:${DESIGN}`)
     expect(lines.find(line => line.text === '+A tight exporter.')?.props.color).toBe(THEME.moss)

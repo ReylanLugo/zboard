@@ -49,7 +49,7 @@ for (const surface of SURFACES) {
     await boot($)
     await zboard($, 'run demo')
     await callTool($, 'board_comment', { taskId: '1.1', text: 'keep CRLF intact' })
-    await stopAgent($, lastAgent(w), ANSWERS.research)
+    await stopAgent($, w, lastAgent(w), ANSWERS.research)
     const board = await mountPane($, surface)
     await board.press({ key: 'card:1.1' })
     expect(w.opened).toContain('zboard-detail')

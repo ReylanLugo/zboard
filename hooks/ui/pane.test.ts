@@ -77,8 +77,8 @@ for (const surface of SURFACES) {
     setupDemo(w, TWO_TASKS)
     await boot($)
     await zboard($, 'run demo/1.1')
-    await stopAgent($, lastAgent(w))
-    await stopAgent($, lastAgent(w))
+    await stopAgent($, w, lastAgent(w))
+    await stopAgent($, w, lastAgent(w))
     const ui = await mountPane($, surface)
     for (let presses = 0; presses < 20 && (await labelOf(ui, 'filter')) !== '[f] filter: status: needs_decision'; presses += 1) {
       await ui.press({ key: 'filter' })

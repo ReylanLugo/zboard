@@ -25,7 +25,7 @@ for (const surface of SURFACES) {
     for (const [key, shown] of labels) expect(await label(ui, key ?? '')).toBe(shown)
     await ui.press({ key: 'comment' })
     await ui.input({ key: 'compose', text: 'tighten' })
-    await stopAgent($, lastAgent(w), json({ files: [{ path: 'openspec/changes/a/plan.md', content: '# Plan v2\n' }], notes: '' }))
+    await stopAgent($, w, lastAgent(w), json({ files: [{ path: 'openspec/changes/a/plan.md', content: '# Plan v2\n' }], notes: '' }))
     expect(await hotkey(ui, 'accept')).toBe('a')
     expect(await hotkey(ui, 'reject')).toBe('z')
     expect([await label(ui, 'accept'), await label(ui, 'reject')]).toEqual(['[a] accept', '[z] reject'])
