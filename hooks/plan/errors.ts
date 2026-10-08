@@ -1,5 +1,5 @@
 /**
- * Readable one-line forms of OpenSpec CLI failures. The raw output stays on the
+ * Readable one-line forms of OpenSpec CLI failures and engine tool errors. The raw output stays on the
  * record (shown on demand); the pane draws only these lines.
  */
 
@@ -10,6 +10,9 @@ const ANSI = /\u001b\[[0-9;]*[A-Za-z]/g
 const MARKERS = /^[\s✖✔✗×▌•\-]+/
 const ERROR_PREFIX = /^Error:\s*/
 const OPENSPEC_COMMAND = /\bopenspec(?: [a-z][a-z-]*)?/
+const TOOL_ERROR = /^\s*<tool_use_error>([\s\S]*?)<\/tool_use_error>\s*$/
+const VALIDATION = /^InputValidationError:\s*(\[[\s\S]*\])\s*$/
+const VALIDATION_LABEL = 'InputValidationError'
 
 export interface CliIssue {
   readonly severity: string
@@ -64,8 +67,34 @@ export function meaningfulLine(output: string): string {
   return chosen === undefined ? EMPTY : cleanLine(chosen) || EMPTY
 }
 
-/** One short line: `<message> · fix: <fix>` for a CLI status answer, else the output's meaningful line. */
+const parseArray = (text: string): unknown[] | undefined => {
+  try {
+    const value = JSON.parse(text) as unknown
+    return Array.isArray(value) ? value : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** `InputValidationError: [ {path, message}, … ]` → `InputValidationError: <path> — <message>` of its first issue. */
+function validationLine(body: string): string | undefined {
+  const listed = VALIDATION.exec(body)?.[1]
+  const first = listed === undefined ? undefined : parseArray(listed)?.[0]
+  if (!isObject(first) || typeof first.message !== 'string') return undefined
+  const path = Array.isArray(first.path) ? first.path.join('.') : ''
+  return path === '' ? `${VALIDATION_LABEL}: ${first.message}` : `${VALIDATION_LABEL}: ${path} — ${first.message}`
+}
+
+/** An engine `<tool_use_error>` answer as one line: its first validation issue, else its text without the tags. */
+function toolErrorLine(output: string): string | undefined {
+  const body = TOOL_ERROR.exec(output)?.[1]?.trim()
+  return body === undefined ? undefined : validationLine(body) ?? meaningfulLine(body)
+}
+
+/** One short line: `<message> · fix: <fix>` for a CLI status answer, a tool error's first issue, else the output's meaningful line. */
 export function readableError(output: string): string {
+  const toolError = toolErrorLine(output)
+  if (toolError !== undefined) return clip(toolError)
   const issues = cliIssues(output)
   const issue = issues.find(candidate => candidate.severity === 'error') ?? issues[0]
   if (issue === undefined) return clip(meaningfulLine(output))

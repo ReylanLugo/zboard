@@ -1,6 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import { INIT_FAILED, NO_ROOT_LIST_JSON, VALIDATE_UNKNOWN_JSON } from '../testing/openspec.ts'
+import { modelValidationError } from '../testing/world.ts'
 import { ERROR_LINE_MAX, isNoOpenspecRoot, readableError } from './errors.ts'
 
 test('a CLI status answer reads as its message and a short fix', () => {
@@ -29,6 +30,23 @@ test('a long line is clipped to the limit with an ellipsis', () => {
   expect(line).toHaveLength(ERROR_LINE_MAX)
   expect(line.endsWith('…')).toBe(true)
   expect(ERROR_LINE_MAX).toBe(140)
+})
+
+test('a tool input validation error reads as its first issue path and message', () => {
+  const expected = "InputValidationError: model — Invalid enum value. Expected 'sonnet' | 'opus' | 'haiku' | 'fable', received 'claude-opus-5-5'"
+  expect(readableError(modelValidationError('claude-opus-5-5'))).toBe(expected)
+  const oneLine = '<tool_use_error>InputValidationError: [{"code":"invalid_type","path":["prompt"],"message":"Required"},{"path":["model"],"message":"x"}]</tool_use_error>'
+  expect(readableError(oneLine)).toBe('InputValidationError: prompt — Required')
+})
+
+test('a long validation message is clipped like any other line', () => {
+  const line = readableError(modelValidationError('m'.repeat(400)))
+  expect(line).toHaveLength(ERROR_LINE_MAX)
+  expect(line.startsWith('InputValidationError: model — Invalid enum value.')).toBe(true)
+})
+
+test('any other tool error reads without its tool_use_error tags', () => {
+  expect(readableError('<tool_use_error>Agent type zboard:x not found</tool_use_error>')).toBe('Agent type zboard:x not found')
 })
 
 test('empty output still reads as something', () => {

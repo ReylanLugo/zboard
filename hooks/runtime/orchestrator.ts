@@ -11,6 +11,7 @@ import { configWarnings, globalLayer, resolveChoice } from '../domain/config.ts'
 import type { EventBody } from '../domain/events.ts'
 import type { Action } from '../domain/pipeline.ts'
 import { next } from '../domain/pipeline.ts'
+import { readableError } from '../plan/errors.ts'
 import { formatComment, undelivered } from '../domain/comments.ts'
 import { activeRun, runOf, taskOfAgent } from '../domain/project.ts'
 import { runnable, waitReason, writeConflict } from '../domain/scheduler.ts'
@@ -130,7 +131,7 @@ export async function spawnPhase(io: Io, ctx: Ctx, task: Task, pending: PendingP
   const baseline = await snapshot(io, await io.session.root())
   const spawned = await spawnRole(io, { role, prompt, description: `${task.id} ${pending.phase}`, model: choice.modelId, effort: choice.effort })
   if ('deny' in spawned) {
-    await append(io, [{ type: 'TaskStatusChanged', taskId: task.id, from: task.status, to: 'blocked', reason: `spawn denied: ${spawned.deny}` }])
+    await append(io, [{ type: 'TaskStatusChanged', taskId: task.id, from: task.status, to: 'blocked', reason: `spawn denied: ${readableError(spawned.deny)}` }])
     return
   }
   await append(io, [

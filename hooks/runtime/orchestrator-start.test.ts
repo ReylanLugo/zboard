@@ -3,7 +3,7 @@ import { expect, test } from 'claude-code/testing'
 import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
 
 import { boot, setupDemo, status, zboard } from '../testing/zboard.ts'
-import { installWorld, worldIo } from '../testing/world.ts'
+import { installWorld, modelValidationError, worldIo } from '../testing/world.ts'
 
 const FOUR = '## 1. Core\n\n- [ ] 1.1 A\n- [ ] 1.2 B\n- [ ] 1.3 C\n- [ ] 1.4 D\n'
 
@@ -53,6 +53,16 @@ test('a denied spawn blocks the task and shows the reason', { timeoutMs: PLUGIN_
   await boot($)
   await zboard($, 'run demo')
   expect((await status($)).tasks[0]).toMatchObject({ id: '1.1', status: 'blocked', statusReason: 'spawn denied: agent limit reached' })
+})
+
+test('a spawn the Agent tool rejects blocks the task with a one-line reason', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+  const w = installWorld(on)
+  setupDemo(w)
+  w.spawnDeny = modelValidationError('claude-opus-5-5')
+  await boot($)
+  await zboard($, 'run demo')
+  expect((await status($)).tasks[0]?.statusReason)
+    .toBe("spawn denied: InputValidationError: model — Invalid enum value. Expected 'sonnet' | 'opus' | 'haiku' | 'fable', received 'claude-opus-5-5'")
 })
 
 test('with no configuration the researcher runs on sonnet 5.5 at medium effort', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
