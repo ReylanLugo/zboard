@@ -15,6 +15,27 @@ test('parseFailures reads pytest and vitest failure lines, ignoring colour codes
   expect(parseFailures(vitest)).toEqual(['tests/a.test.ts > parser > keeps CRLF'])
 })
 
+test('parseFailures reads node:test spec and TAP failures, without the summary heading', () => {
+  const spec = [
+    '✖ greet returns Hello (0.51ms)',
+    'ℹ tests 2',
+    'ℹ fail 1',
+    '',
+    '✖ failing tests:',
+    '',
+    'test at greet.test.mjs:6:1',
+    '✖ greet returns Hello (0.51ms)',
+    '  Error [ERR_MODULE_NOT_FOUND]: Cannot find module',
+  ].join('\n')
+  expect(parseFailures(spec)).toEqual(['greet returns Hello'])
+  expect(parseFailures('TAP version 13\nnot ok 1 - greet trims input\n  ---\n# fail 1\n')).toEqual(['greet trims input'])
+})
+
+test('testsExecuted reads node:test spec and TAP pass counts', () => {
+  expect(testsExecuted('✔ a (1ms)\n✔ b (1ms)\nℹ tests 2\nℹ suites 0\nℹ pass 2\nℹ fail 0\n')).toBe(2)
+  expect(testsExecuted('TAP version 13\nok 1 - a\n# tests 1\n# pass 1\n# fail 0\n')).toBe(1)
+})
+
 test('endLineOf prefers the last ptest narration line on stderr', () => {
   expect(endLineOf('ptest: demo · pytest\nptest: demo · failed · 1 of 3 tests\n', 'x')).toBe('ptest: demo · failed · 1 of 3 tests')
   expect(endLineOf('', 'last stdout line\n')).toBe('last stdout line')

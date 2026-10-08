@@ -58,7 +58,10 @@ export function parseFailures(stdout: string): string[] {
   const clean = stdout.replace(ANSI, '')
   const pytest = [...clean.matchAll(/^FAILED (\S+)/gm)].map(match => match[1] ?? '')
   const vitest = [...clean.matchAll(/^\s*FAIL\s+(\S.*? > .+?)\s*$/gm)].map(match => match[1] ?? '')
-  return unique([...pytest, ...vitest].filter(name => name !== ''))
+  // node:test spec lines end with a duration, which the `✖ failing tests:` heading lacks.
+  const nodeSpec = [...clean.matchAll(/^\s*✖ (.+?) \([\d.]+m?s\)\s*$/gm)].map(match => match[1] ?? '')
+  const nodeTap = [...clean.matchAll(/^\s*not ok \d+ - (.+?)\s*$/gm)].map(match => match[1] ?? '')
+  return unique([...pytest, ...vitest, ...nodeSpec, ...nodeTap].filter(name => name !== ''))
 }
 
 const PASSED_COUNT = /\bpassed\b.*?(\d+) tests?\b/
@@ -82,7 +85,7 @@ const goPackages: Counter = text => {
   return ran.length === 0 ? undefined : ran.length
 }
 
-/** Known runners' passed counts, first match wins: ptest, pytest, vitest, jest, cargo, go. */
+/** Known runners' passed counts, first match wins: ptest, pytest, vitest, jest, cargo, go, node:test (spec, TAP). */
 const COUNTERS: readonly Counter[] = [
   firstCount(PASSED_COUNT),
   firstCount(/^=+ [^\n]*?\b(\d+) passed\b[^\n]* =+$/m),
@@ -90,6 +93,8 @@ const COUNTERS: readonly Counter[] = [
   firstCount(/^Tests:\s+(?:[^\n]*,\s*)?(\d+) passed\b/m),
   summedCount(/^test result: ok\. (\d+) passed\b/gm),
   goPackages,
+  firstCount(/^ℹ pass (\d+)\s*$/m),
+  firstCount(/^# pass (\d+)\s*$/m),
 ]
 
 /** Tests a run's output reports as passed; 0 when no known runner summary names any. */

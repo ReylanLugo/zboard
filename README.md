@@ -154,10 +154,12 @@ or set your own command in `.zboard/config.json`:
   ten minutes, so values above 600000 are capped there with a warning. Without `testCommand` it is ignored.
 - An invalid value shows a config warning in the board header and in `/zboard config`, and ptest stays in use.
 - Exit 0 is a pass and any other exit is a failure; a run that times out or cannot start is retried once, then the
-  result is incomplete. Failing tests are read from pytest `FAILED …` and vitest `FAIL … > …` lines.
+  result is incomplete. Failing tests are read from pytest `FAILED …`, vitest `FAIL … > …` and node:test
+  (`✖ <name> (<ms>)` or TAP `not ok N - <name>`) lines.
 - The judge's `true` verdict needs a cited test that passed with at least one executed test. zboard reads that
   count from ptest's end line and from pytest (`N passed` summary), vitest (`Tests  N passed`), jest
-  (`Tests: N passed`), go test (`ok <pkg>` lines) and cargo (`test result: ok. N passed`) output. Any other
+  (`Tests: N passed`), go test (`ok <pkg>` lines), cargo (`test result: ok. N passed`) and node:test
+  (`ℹ pass N` or TAP `# pass N`) output. Any other
   runner's output counts as zero executed tests, so its findings can at best be `no_evidence`, which you can
   accept without evidence.
 - Pick a command that runs a single test file. `go test` runs packages rather than files, so it does not fit a
