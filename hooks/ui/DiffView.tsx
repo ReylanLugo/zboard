@@ -46,10 +46,10 @@ export function DiffView(els: Els, io: Io, ctx: Ctx, rec: ChangeRecord, proposal
       ))}
       <Box key="diff-actions" flexDirection="row" gap={1}>
         {isStale
-          ? <Button key="regenerate" label="regenerate" variant="primary" onPress={act(io, rec, 'regenerate', () => regenerateProposal(io, ctx, rec.id))} />
+          ? <Button key="regenerate" {...keyed('g', 'regenerate')} variant="primary" onPress={act(io, rec, 'regenerate', () => regenerateProposal(io, ctx, rec.id))} />
           : <Button key="accept" {...keyed('a', 'accept')} variant="primary" onPress={act(io, rec, 'accept', () => acceptProposal(io, ctx, rec.id))} />}
         <Button key="reject" {...keyed('z', 'reject')} onPress={act(io, rec, 'reject', () => rejectProposal(io, rec.id))} />
-        <Button key="another" label="ask another version" onPress={act(io, rec, 'another', () => startCompose(io, 'note'))} />
+        <Button key="another" {...keyed('v', 'ask another version')} onPress={act(io, rec, 'another', () => startCompose(io, 'note'))} />
       </Box>
     </Box>
   )

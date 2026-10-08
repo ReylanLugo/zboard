@@ -29,14 +29,14 @@ export function QaView(els: Els, io: Io, ctx: Ctx, rec: ChangeRecord): RenderEle
         : [
           <Box key="qa-question"><Text bold>{open.question}</Text></Box>,
           <Box key="qa-why"><Text dimColor>{open.why}</Text></Box>,
-          <Box key="qa-options" flexDirection="row" gap={1}>
+          <Box key="qa-options" flexDirection="column">
             {open.options.map((option, index) => <Button key={`qa-option:${index}`} {...keyed(String(index + 1), option)} onPress={() => answer(option)} />)}
           </Box>,
           <Input key="qa-answer" label="or answer in your own words" placeholder="type, then Enter" onSubmit={value => answer(value)} />,
         ]}
       {qa.done
         ? <Button key="qa-draft" label="draft brainstorm.md from the turns" onPress={act(io, rec, 'qa.draft', () => draftFromTurns(io, ctx, rec.id))} />
-        : <Button key="qa-finish" label="finish" onPress={act(io, rec, 'qa.finish', () => finishBrainstorm(io, ctx, rec.id))} />}
+        : <Button key="qa-finish" {...keyed('f', 'finish')} onPress={act(io, rec, 'qa.finish', () => finishBrainstorm(io, ctx, rec.id))} />}
     </Box>
   )
 }

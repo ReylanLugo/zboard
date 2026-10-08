@@ -53,6 +53,8 @@ for (const surface of SURFACES) {
     expect((await ui.find({ key: 'forecast-line:0' }))?.text).toBe('4 drafter run(s) · opus 5.5/high')
     expect((await ui.find({ key: 'forecast-line:1' }))?.text).toBe('no estimate (no earlier drafter runs recorded)')
     expect(w.spawns).toEqual([])
+    expect(await labelOf(ui, 'forecast-confirm')).toBe('[y] draft the plan')
+    expect(await labelOf(ui, 'forecast-dismiss')).toBe('[q] not now')
     await ui.press({ key: 'forecast-dismiss' })
     expect(await ui.find({ key: 'forecast' })).toBeUndefined()
     expect(w.spawns).toEqual([])

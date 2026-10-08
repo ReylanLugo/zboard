@@ -15,6 +15,7 @@ import { isolatePlan } from '../runtime/plan-store.ts'
 import { proposeVerifyMd, rejudge, resolveFinding, verifyChange } from '../runtime/plan-verify.ts'
 import { act } from './changes-actions.ts'
 import type { Els } from './els.ts'
+import { keyed } from './format.ts'
 import { THEME, ink } from './theme.ts'
 
 export function VerifyTab(els: Els, io: Io, ctx: Ctx, rec: ChangeRecord): RenderElement {
@@ -58,8 +59,8 @@ export function ForecastView(els: Els, io: Io, ctx: Ctx, forecast: Forecast): Re
       <Box key="forecast-title"><Text bold>Plan step forecast — nothing runs until you confirm</Text></Box>
       {forecastLines(forecast).map((line, index) => <Box key={`forecast-line:${index}`}><Text>{line}</Text></Box>)}
       <Box key="forecast-actions" flexDirection="row" gap={1}>
-        <Button key="forecast-confirm" label="draft the plan" variant="primary" onPress={() => void isolatePlan(io, 'ui.forecast', async () => { await confirmForecast(io, ctx) }, undefined, forecast.changeId)} />
-        <Button key="forecast-dismiss" label="not now" onPress={() => void dismissForecast(io)} />
+        <Button key="forecast-confirm" {...keyed('y', 'draft the plan')} variant="primary" onPress={() => void isolatePlan(io, 'ui.forecast', async () => { await confirmForecast(io, ctx) }, undefined, forecast.changeId)} />
+        <Button key="forecast-dismiss" {...keyed('q', 'not now')} onPress={() => void dismissForecast(io)} />
       </Box>
     </Box>
   )

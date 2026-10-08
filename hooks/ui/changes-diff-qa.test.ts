@@ -71,7 +71,8 @@ for (const surface of SURFACES) {
     await ui.press({ key: 'accept' })
     expect(w.files.get(`/repo/${DESIGN}`)).toBe('edited in the editor\n')
     expect(await ui.find({ key: 'accept' })).toBeUndefined()
-    expect(await labelOf(ui, 'regenerate')).toBe('regenerate')
+    expect(await labelOf(ui, 'regenerate')).toBe('[g] regenerate')
+    expect(await labelOf(ui, 'another')).toBe('[v] ask another version')
     await ui.unmount()
   })
 
@@ -87,7 +88,9 @@ for (const surface of SURFACES) {
     expect((await ui.find({ key: 'qa-question' }))?.text).toBe('Who uses it?')
     expect((await ui.find({ key: 'qa-why' }))?.text).toBe('scope')
     expect(await labelOf(ui, 'qa-option:1')).toBe('[2] B')
-    expect(await ui.find({ key: 'qa-finish' })).toBeDefined()
+    expect(await labelOf(ui, 'qa-finish')).toBe('[f] finish')
+    // Long options stack one per row instead of squeezing side by side.
+    expect((await ui.find({ key: 'qa-options' }))?.props.flexDirection).toBe('column')
     await ui.press({ key: 'qa-option:1' })
     expect(w.spawns[1]?.prompt).toContain('Answer: B')
     await stopAgent($, w, lastAgent(w), json({ question: 'When?', options: [], why: 'time' }))
