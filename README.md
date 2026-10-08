@@ -54,6 +54,11 @@ Board keys (while the pane holds the keyboard): Tab/arrows move between cards, E
 `c` comment, `b` block/unblock, `p` priority, `v` Kanban → Swimlanes → Tree, `f` filter, `a` full artifact
 in the detail, Esc closes the detail.
 
+The panes use one "blueprint" theme, defined in `hooks/ui/theme.ts`: the header is a dimension ruler
+(`├─ zboard · <change> ─── 3/5 ▓▓▓░░ ─┤  ◐ 2 running · ⚠ 1 decision · …`), blueprint cyan marks the selected
+card, the ruler and active borders; amber means running, green done, red needs a decision or failed,
+steel idle or blocked. No background is forced, so the board reads on dark and light terminals.
+
 The main session can read the board with `board_status`, `board_task`, `board_artifact` and `board_agent`,
 and comment with `board_comment`. It is told only when a task needs a decision or the change is complete.
 
