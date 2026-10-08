@@ -3,7 +3,7 @@ import { atom, read, update } from 'claude-code'
 
 import { installAgentOffer, registerAgentTypes, registerPlanAgentTypes } from './adapters/agents.ts'
 import { parseArgs } from './commands/args.ts'
-import { dispatch, registerCommand } from './commands/zboard.ts'
+import { dispatch, registerCommand, unprefixed } from './commands/zboard.ts'
 import { installEngramAllow } from './adapters/engram.ts'
 import type { LogState } from './domain/log.ts'
 import { EMPTY_LOG, boardOf } from './domain/log.ts'
@@ -221,7 +221,7 @@ export const register: Register = (on, options) => {
   on('command.run', { command: 'zboard' }, async ($, e) => {
     const io = ioOf($)
     const text = await isolate(io, 'command.zboard', () => dispatch(io, ctx, parseArgs(e.args)), 'zboard: the command failed; see the board header.')
-    return { text }
+    return { text: unprefixed(text) }
   })
 
   // Engine capture (runtime/capture.ts): the engine's own result always passes through.

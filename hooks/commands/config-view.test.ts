@@ -30,7 +30,7 @@ test('/zboard config prints the effective configuration with sources', { timeout
 test('/zboard set before any change is loaded names the unknown task', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   installWorld(on)
   await boot($)
-  expect(await zboard($, 'set 1.1 researcher opus 5.5 high')).toBe('zboard: unknown task 1.1')
+  expect(await zboard($, 'set 1.1 researcher opus 5.5 high')).toBe('unknown task 1.1')
 })
 
 test('/zboard set applies to the next spawn of that task only', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
@@ -38,8 +38,8 @@ test('/zboard set applies to the next spawn of that task only', { timeoutMs: PLU
   setupDemo(w, '## 1. Core\n\n- [ ] 1.1 Parse tasks\n- [ ] 1.2 Flip lines\n')
   await boot($)
   await zboard($, 'run demo/1.2')
-  expect(await zboard($, 'set 1.1 researcher opus 5.5 high')).toBe('zboard: task 1.1 zboard:researcher will use opus 5.5 / high')
-  expect(await zboard($, 'set 1.1 implementer opus 5.5 high')).toBe('zboard: task 1.1 zboard:implementer will use opus 5.5 / high')
+  expect(await zboard($, 'set 1.1 researcher opus 5.5 high')).toBe('task 1.1 zboard:researcher will use opus 5.5 / high')
+  expect(await zboard($, 'set 1.1 implementer opus 5.5 high')).toBe('task 1.1 zboard:implementer will use opus 5.5 / high')
   await zboard($, 'run demo')
   const byTask = (id: string) => w.spawns.find(spawn => spawn.prompt.startsWith(`Task ${id}:`))
   expect(byTask('1.1')?.model).toBe('claude-opus-5-5')
@@ -52,9 +52,9 @@ test('/zboard set rejects unknown agents, models and efforts', { timeoutMs: PLUG
   setupDemo(w)
   await boot($)
   await zboard($, 'run demo/1.1')
-  expect(await zboard($, 'set 1.1 wizard opus 5.5 high')).toBe('zboard: unknown agent wizard (researcher, planner, tdd, implementer, reviewer, refactorer)')
-  expect(await zboard($, 'set 1.1 reviewer gpt 9 high')).toBe('zboard: unknown model "gpt 9" (opus 5.5, sonnet 5.5, haiku 4.5)')
-  expect(await zboard($, 'set 1.1 reviewer opus 5.5 ultra')).toBe('zboard: unknown effort "ultra" (low, medium, high, xhigh, max)')
+  expect(await zboard($, 'set 1.1 wizard opus 5.5 high')).toBe('unknown agent wizard (researcher, planner, tdd, implementer, reviewer, refactorer)')
+  expect(await zboard($, 'set 1.1 reviewer gpt 9 high')).toBe('unknown model "gpt 9" (opus 5.5, sonnet 5.5, haiku 4.5)')
+  expect(await zboard($, 'set 1.1 reviewer opus 5.5 ultra')).toBe('unknown effort "ultra" (low, medium, high, xhigh, max)')
 })
 
 test('config lines show the default ptest test command when none is configured', () => {

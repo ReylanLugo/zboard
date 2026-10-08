@@ -18,7 +18,7 @@ for (const surface of SURFACES) {
     seedChange(w, 'b', { 'brainstorm.md': '# Brainstorm\n' })
     w.files.set('/repo/openspec/changes/archive/2026-01-01-c/proposal.md', 'p')
     await boot($)
-    expect(await zboard($, 'changes')).toBe('zboard: changes opened.')
+    expect(await zboard($, 'changes')).toBe('changes opened.')
     expect(w.opened).toEqual(['zboard-changes'])
     const ui = await mountPane($, surface, 'zboard-changes')
     expect((await ui.find({ key: 'group:active' }))?.text).toBe('Active (1)')
@@ -60,7 +60,7 @@ for (const surface of SURFACES) {
     expect(await labelOf(ui, 'change:a')).toBe('a · ready · 0/1')
     expect((await ui.find({ key: 'change-error' }))?.text).toBe('⚠ boom')
     await ui.unmount()
-    expect(await zboard($, '')).toBe('zboard: board opened.')
+    expect(await zboard($, '')).toBe('board opened.')
   })
 }
 
@@ -77,8 +77,8 @@ test('/zboard run behaves exactly as before; an invalid id is refused by /zboard
   const w = installWorld(on)
   setupDemo(w)
   await boot($)
-  expect(await zboard($, 'run demo')).toBe('zboard: running demo')
+  expect(await zboard($, 'run demo')).toBe('running demo')
   expect(w.opened).toEqual(['zboard'])
-  expect(await zboard($, 'changes ../x')).toBe('zboard: invalid change name: ../x')
+  expect(await zboard($, 'changes ../x')).toBe('invalid change name: ../x')
   expect(w.opened).toEqual(['zboard'])
 })

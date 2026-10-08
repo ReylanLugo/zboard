@@ -104,7 +104,7 @@ test('an injected comment stays data and every escaping path is refused', { time
     expect(w.toasts.at(-1)).toMatch(new RegExp(`^zboard: refused path ${path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`))
   }
   expect([...w.files.values()].includes('pwned')).toBe(false)
-  expect(await zboard($, 'changes ../../etc')).toBe('zboard: invalid change name: ../../etc')
+  expect(await zboard($, 'changes ../../etc')).toBe('invalid change name: ../../etc')
   expect(w.runs.some(argv => argv.includes('../../etc'))).toBe(false)
   await ui.unmount()
 })

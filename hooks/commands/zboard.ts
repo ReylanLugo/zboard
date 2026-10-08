@@ -21,6 +21,11 @@ export async function openBoard(io: Io): Promise<string> {
   return opened.isPlaced ? 'zboard: board opened.' : `zboard: the board waits to be placed (${opened.reason}).`
 }
 
+const REPLY_PREFIX = 'zboard: '
+
+/** Claude Code already prefixes a command's reply with the plugin name, so a reply drops its own. */
+export const unprefixed = (text: string): string => (text.startsWith(REPLY_PREFIX) ? text.slice(REPLY_PREFIX.length) : text)
+
 /** Answers one `/zboard` invocation; its hook lives in `register.tsx`. */
 export async function dispatch(io: Io, ctx: Ctx, command: ZboardCommand): Promise<string> {
   switch (command.kind) {

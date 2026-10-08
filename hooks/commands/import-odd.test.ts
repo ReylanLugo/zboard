@@ -28,7 +28,7 @@ test('confirming with the digest writes the change, keeps [x], stores history an
   w.files.set(SOURCE, ODD)
   await boot($)
   const digest = digestIn(await zboard($, 'import-odd parser'))
-  expect(await zboard($, `import-odd parser --confirm ${digest}`)).toBe('zboard: wrote openspec/changes/parser (4 files).')
+  expect(await zboard($, `import-odd parser --confirm ${digest}`)).toBe('wrote openspec/changes/parser (4 files).')
   expect(w.files.get('/repo/openspec/changes/parser/tasks.md')).toContain('- [x] 1.2 Add parser')
   expect(w.files.get(SOURCE)).toBe(ODD)
   const history = w.saved.find(saved => saved.topic === 'zboard/repo/parser/odd-history')
@@ -40,14 +40,14 @@ test('an existing change directory is refused and nothing is written', { timeout
   w.files.set(SOURCE, ODD)
   w.files.set('/repo/openspec/changes/parser/proposal.md', 'mine')
   await boot($)
-  expect(await zboard($, 'import-odd parser')).toBe('zboard: openspec/changes/parser already exists; nothing was written.')
+  expect(await zboard($, 'import-odd parser')).toBe('openspec/changes/parser already exists; nothing was written.')
   expect(w.files.get('/repo/openspec/changes/parser/proposal.md')).toBe('mine')
 })
 
 test('a traversal feature name is rejected before any read or write', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   await boot($)
-  expect(await zboard($, 'import-odd ../../etc')).toBe('zboard: invalid feature name "../../etc"')
+  expect(await zboard($, 'import-odd ../../etc')).toBe('invalid feature name "../../etc"')
   expect(w.files.size).toBe(0)
 })
 
@@ -68,6 +68,6 @@ test('a stale digest is refused and a fresh preview is shown', { timeoutMs: PLUG
   const digest = digestIn(await zboard($, 'import-odd parser'))
   w.files.set(SOURCE, ODD.replace('Measure', 'Measure twice'))
   const answer = await zboard($, `import-odd parser --confirm ${digest}`)
-  expect(answer).toStartWith(`zboard: the preview changed since digest ${digest}; nothing was written.`)
+  expect(answer).toStartWith(`the preview changed since digest ${digest}; nothing was written.`)
   expect(w.files.has('/repo/openspec/changes/parser/tasks.md')).toBe(false)
 })
