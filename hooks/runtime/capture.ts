@@ -28,17 +28,14 @@ export interface SubagentStopInput {
 }
 
 /**
- * Records a pipeline agent's end now; its completion (evaluation, then the next
- * phase's spawn) runs on a timer after the engine's SubagentStop dispatch, so a
- * new agent never starts inside the dying one's stop.
+ * Records a pipeline agent's end, then awaits its completion (evaluation, then the
+ * next phase's spawn) inside the caller's hook frame (runtime/frame.ts).
  */
 export async function captureStop(io: Io, stop: SubagentStopInput): Promise<void> {
   if (taskOfAgent(await readBoard(io), stop.agentId) === undefined) return
   const { agentId, transcriptPath, effort, answer } = stop
   await append(io, [{ type: 'AgentStopped', agentId, transcriptPath, ...(effort === undefined ? {} : { effort }) }])
-  io.clock.after(0, () => {
-    void isolate(io, 'capture.agentStop', () => emitAgentStop(io, { agentId, answer, transcriptPath, effort }), undefined)
-  })
+  await isolate(io, 'capture.agentStop', () => emitAgentStop(io, { agentId, answer, transcriptPath, effort }), undefined)
 }
 
 export async function captureTokens(io: Io, agentId: string | undefined, usage: { readonly input_tokens?: number; readonly output_tokens?: number } | undefined): Promise<void> {

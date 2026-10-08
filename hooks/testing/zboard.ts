@@ -105,26 +105,25 @@ export function setupDemo(w: World, tasksMd: string = ONE_TASK): Map<string, str
 
 /**
  * Ends a zboard-spawned agent as the engine does. Its run reports through the
- * SubagentHandback tool (its messages hold the call) and ends with no text; the
- * engine raises nothing of that run's tool calls or SubagentStop into zboard (the
- * plugin's own spawn lent them: re-entry), only the run's `turn.complete` with
- * an empty answer. The report then reaches the main session as a peer message.
- * Timers the completion set run after.
+ * SubagentHandback tool (its messages hold the call) and ends with no text: the
+ * run's `turn.complete` with an empty answer completes it (a SubagentStop that
+ * follows is a no-op). The report then reaches the main session as a peer message.
+ * The clock does not move: the completion and every spawn it makes are awaited
+ * inside the hook.
  */
 export async function stopAgent($: Engine, w: World, agentId: string, answer?: string): Promise<void> {
   if (answer !== undefined) w.transcripts.set(agentId, [...(w.transcripts.get(agentId) ?? []), handbackRow(answer)])
-  await completeTurn($, w, agentId, '')
+  await completeTurn($, agentId, '')
   if (answer !== undefined) await deliverPeer($, agentId, answer)
 }
 
 /** An agent whose run ends with text: the engine's `turn.complete` carries it as `answer`. */
 export async function stopAgentWithText($: Engine, w: World, agentId: string, answer: string): Promise<void> {
-  await completeTurn($, w, agentId, answer)
+  await completeTurn($, agentId, answer)
 }
 
-async function completeTurn($: Engine, w: World, agentId: string, answer: string): Promise<void> {
+async function completeTurn($: Engine, agentId: string, answer: string): Promise<void> {
   await $.turn.complete({ answer, durationMs: 1, isAborted: false, turnId: `turn-${agentId}`, agentId, reason: 'answer' })
-  await w.clock.advance(0)
 }
 
 /**
@@ -134,7 +133,6 @@ async function completeTurn($: Engine, w: World, agentId: string, answer: string
 export async function stopAgentBySubagentStop($: Engine, w: World, agentId: string, answer: string): Promise<void> {
   w.transcripts.set(agentId, [...(w.transcripts.get(agentId) ?? []), handbackRow(answer)])
   await $.classic.SubagentStop({ stop_hook_active: false, agent_id: agentId, agent_transcript_path: `/t/${agentId}.jsonl`, agent_type: 'zboard' })
-  await w.clock.advance(0)
 }
 
 /** A hand-back as the main session receives it: a peer turn naming the agent. */

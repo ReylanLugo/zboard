@@ -6,10 +6,11 @@ import { isolate } from './log-store.ts'
 import { planStop } from './plan-runner.ts'
 import { isolatePlan } from './plan-store.ts'
 
-// A zboard agent's completion. The engine raises a zboard-spawned agent's
-// SubagentStop beneath zboard's own spawn and skips zboard's hook for it
-// (re-entry); the run's `turn.complete`, carrying its agentId, does reach zboard.
-// Either event completes the agent: whichever comes first wins, the other is a no-op.
+// A zboard agent's completion, from the run's `turn.complete` (carrying its
+// agentId) or its SubagentStop: whichever reaches zboard first wins, the other is
+// a no-op. Everything it starts (the next phase, a freed slot's task, a plan
+// retry or next job) spawns awaited inside that hook's frame (runtime/frame.ts),
+// never from a timer, so the engine runs zboard's hooks for the new agent.
 
 export interface AgentEnd {
   readonly agentId: string
@@ -40,7 +41,7 @@ export function claimLedger(): Claim {
 
 /**
  * Completes a running zboard agent once: its answer (final text, else the report
- * in its messages), the board's stop now, the plan's next step after this dispatch.
+ * in its messages), then the board's stop and the plan's next step, both awaited.
  */
 export async function completeAgent(io: Io, ctx: Ctx, end: AgentEnd, claim: Claim): Promise<void> {
   if ((await roleOfAgent(io, end.agentId)) === undefined) return
@@ -48,8 +49,5 @@ export async function completeAgent(io: Io, ctx: Ctx, end: AgentEnd, claim: Clai
   const answer = await isolate(io, 'handback.stop', () => stopAnswer(io, end.agentId, end.text), end.text)
   const stop = { agentId: end.agentId, transcriptPath: end.transcriptPath, answer, effort: end.effort }
   await isolate(io, 'capture.stop', () => captureStop(io, stop), undefined)
-  // A plan agent's next step (a retry or the next job) spawns after this dispatch, never inside it.
-  io.clock.after(0, () => {
-    void isolatePlan(io, 'plan.stop', () => planStop(io, ctx, stop), undefined)
-  })
+  await isolatePlan(io, 'plan.stop', () => planStop(io, ctx, stop), undefined)
 }

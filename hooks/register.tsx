@@ -19,7 +19,7 @@ import { noteFor } from './runtime/inject.ts'
 import { append, isolate, onAppend, readBoard } from './runtime/log-store.ts'
 import { mirrorCreated, mirrorUpdated } from './runtime/native.ts'
 import { installNotify } from './runtime/notify.ts'
-import { installOrchestrator } from './runtime/orchestrator.ts'
+import { installOrchestrator, tickIfDue } from './runtime/orchestrator.ts'
 import { readDocs } from './runtime/plan-docs.ts'
 import { installPlanJobs } from './runtime/plan-jobs.ts'
 import { flushPlanMirror, installPlanMirror } from './runtime/plan-mirror.ts'
@@ -171,7 +171,7 @@ export const register: Register = (on, options) => {
     await registerCommand(io)
     await isolate(io, 'prefs.session.start', () => applyStoredPrefs(io), undefined)
     const started = await next(e)
-    startPolling(io, ctx)
+    startPolling(io)
     await isolate(io, 'recovery.session.start', () => recover(io, ctx, true), undefined)
     await isolatePlan(io, 'plan.recovery', () => recoverPlan(io), undefined)
     await isolate(io, 'agents.session.start', () => refreshAgents(io, agents), undefined)
@@ -255,8 +255,8 @@ export const register: Register = (on, options) => {
     await isolate(io, 'classic.SubagentStart', () => touch(io, e.agent_id), undefined)
     return result
   })
-  // A zboard-spawned agent's SubagentStop is skipped by re-entry; turn.complete completes it
-  // (runtime/complete.ts). This hook stays for any agent whose stop does reach zboard.
+  // A zboard agent's completion (runtime/complete.ts) from whichever of its SubagentStop and its
+  // turn.complete reaches zboard first; the next phase or plan step is awaited inside that hook.
   on('classic.SubagentStop', async ($, e, next) => {
     const result = await next(e)
     const io = ioOf($)
@@ -291,6 +291,7 @@ export const register: Register = (on, options) => {
     const result = await next(e)
     const agentId = e.agentId
     if (agentId !== undefined) await isolate(io, 'turn.complete.stop', () => completeAgent(io, ctx, { agentId, text: e.answer }, claim), undefined)
+    await isolate(io, 'turn.complete.tick', () => tickIfDue(io, ctx), undefined)
     return result
   })
 

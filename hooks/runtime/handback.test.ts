@@ -14,7 +14,7 @@ import { handbackFrom, nonBlank } from './handback.ts'
 const subagentStop = ($: Engine, agentId: string) =>
   $.classic.SubagentStop({ stop_hook_active: false, agent_id: agentId, agent_transcript_path: `/t/${agentId}.jsonl`, agent_type: 'zboard' })
 
-/** The agent's run holds its SubagentHandback call; zboard never sees the call itself (re-entry). */
+/** The agent's run holds its SubagentHandback call; zboard reads the report from its messages. */
 const handBack = (w: World, agentId: string, message: string): void => {
   w.transcripts.set(agentId, [...(w.transcripts.get(agentId) ?? []), handbackRow(message)])
 }
@@ -125,19 +125,17 @@ test('a hand-back zboard never saw as a tool call is read from the agent\'s tran
   expect(w.spawns.map(spawn => spawn.subagentType)).toEqual(['zboard:researcher', 'zboard:planner'])
 })
 
-test('the next pipeline phase spawns after the stopped agent\'s SubagentStop, never inside it', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+test('the next pipeline phase spawns inside the stopped agent\'s SubagentStop dispatch', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   setupDemo(w)
   await boot($)
   await zboard($, 'run demo')
   handBack(w, lastAgent(w), ANSWERS.research)
   await subagentStop($, lastAgent(w))
-  expect(w.spawns).toHaveLength(1)
-  await w.clock.advance(0)
   expect(w.spawns.map(spawn => spawn.subagentType)).toEqual(['zboard:researcher', 'zboard:planner'])
 })
 
-test('a plan agent\'s retry spawns after its SubagentStop, never inside it', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+test('a plan agent\'s retry spawns inside its SubagentStop dispatch', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
   const w = installWorld(on)
   scriptOpenspec(w)
   scriptGit(w)
@@ -149,7 +147,5 @@ test('a plan agent\'s retry spawns after its SubagentStop, never inside it', { t
   await ui.press({ key: 'draft' })
   handBack(w, lastAgent(w), 'I have no question.')
   await subagentStop($, lastAgent(w))
-  expect(w.spawns).toHaveLength(1)
-  await w.clock.advance(0)
   expect(w.spawns.map(spawn => spawn.subagentType)).toEqual(['zboard:brainstormer', 'zboard:brainstormer'])
 })

@@ -56,6 +56,22 @@ export async function pauseRun(io: Io): Promise<string> {
 }
 
 let queue: Promise<void> = Promise.resolve()
+let isTickDue = false
+
+/**
+ * A timer (the tasks.md poll) may not spawn (runtime/frame.ts): it only records
+ * that a tick is due, and the next hook frame runs it (`tickIfDue`).
+ */
+export const requestTick = (): void => {
+  isTickDue = true
+}
+
+/** Runs the tick a timer asked for, inside the calling hook's frame. */
+export async function tickIfDue(io: Io, ctx: Ctx): Promise<void> {
+  if (!isTickDue) return
+  isTickDue = false
+  await tick(io, ctx)
+}
 
 /** Ticks run one at a time so a pending phase is never launched twice. */
 export function tick(io: Io, ctx: Ctx): Promise<void> {
