@@ -1,6 +1,6 @@
 {
   "name": "zboard",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Kanban board and deterministic per-task pipeline for OpenSpec changes inside Claude Code.",
   "types": "./types/index.d.ts",
   "license": "MIT",
