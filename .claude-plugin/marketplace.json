@@ -1,0 +1,14 @@
+{
+  "name": "zboard",
+  "description": "Kanban board, changes viewer and per-task subagent pipeline for OpenSpec changes inside Claude Code",
+  "owner": {
+    "name": "ReylanLugo"
+  },
+  "plugins": [
+    {
+      "name": "zboard",
+      "source": "./",
+      "description": "Plan OpenSpec changes in a viewer (Q&A brainstorm, approved diffs, readiness, spec judge, archive) and run each task through research → plan → tdd → code → review with subagents."
+    }
+  ]
+}

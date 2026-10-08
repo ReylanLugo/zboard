@@ -7,13 +7,36 @@ checkbox flipped only after a verified commit.
 
 ## Install
 
-Load it from this folder for one session:
+Requirements: Claude Code 2.1.289 or later, `git`, the OpenSpec CLI (`openspec` 1.13+), and a test runner for
+your repository (`ptest` by default, or any command set as `testCommand`; see [Configuration](#configuration)).
+Optional: the Engram MCP server (plan and board state survive compaction) and `mmdc` for conceptual diagrams
+(`npm i -g @mermaid-js/mermaid-cli`).
 
-```bash
-claude --plugin-dir /path/to/zboard
+From the marketplace (inside Claude Code):
+
+```
+/plugin marketplace add ReylanLugo/zboard
+/plugin install zboard@zboard
 ```
 
-or add the folder as a plugin marketplace and install it, so `/reload-plugins` re-reads the folder.
+or from the command line:
+
+```bash
+claude plugin marketplace add ReylanLugo/zboard
+claude plugin install zboard@zboard
+```
+
+Update later with `claude plugin marketplace update zboard`.
+
+From a local clone (development, or to pin a checkout):
+
+```bash
+git clone https://github.com/ReylanLugo/zboard.git ~/tools/zboard
+claude --plugin-dir ~/tools/zboard              # one session
+export CLAUDE_CODE_PLUGIN_DIRS=~/tools/zboard   # every session, desktop app included
+```
+
+zboard commits once per task on the current branch, so start it on a feature branch.
 
 ## Use
 
