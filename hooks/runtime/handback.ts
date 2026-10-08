@@ -48,3 +48,12 @@ export async function takeHandback(io: Io, agentId: string): Promise<string | un
   await io.state.handbacks.update(current => withoutHandback(current, agentId))
   return found.message
 }
+
+const nonBlank = (text: string | undefined): string | undefined =>
+  text === undefined || text.trim() === '' ? undefined : text
+
+/** An agent's answer at its stop: its final text, else the report it handed back (taken either way). */
+export async function stopAnswer(io: Io, agentId: string, text: string | undefined): Promise<string | undefined> {
+  const kept = await takeHandback(io, agentId)
+  return nonBlank(text) ?? kept
+}

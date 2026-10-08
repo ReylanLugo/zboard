@@ -5,9 +5,9 @@ import { PLUGIN_TEST_TIMEOUT_MS } from '../testing/timeouts.ts'
 
 import { scriptOpenspec } from '../testing/openspec.ts'
 import { mountPane } from '../testing/ui.ts'
-import { HANDBACK_TOOL, installWorld } from '../testing/world.ts'
-import { ANSWERS, boot, json, lastAgent, scriptGit, setupDemo, zboard } from '../testing/zboard.ts'
-import { HANDBACK_CAP, handbackNote, withHandback, withoutHandback } from './handback.ts'
+import { HANDBACK_TOOL, installWorld, worldIo } from '../testing/world.ts'
+import { ANSWERS, boot, json, lastAgent, scriptGit, setupDemo, stopAgent, stopAgentWithText, zboard } from '../testing/zboard.ts'
+import { HANDBACK_CAP, handbackNote, stopAnswer, withHandback, withoutHandback } from './handback.ts'
 
 const handBack = ($: Engine, agentId: string, message: string) =>
   $.tool.call({ tool: HANDBACK_TOOL, message, agentId } as never)
@@ -53,4 +53,31 @@ test('a hand-back from an agent zboard does not run reaches the main session unt
   await zboard($, 'run demo')
   await handBack($, 'stranger', 'my own report')
   expect(w.handbacks).toEqual([{ agentId: 'stranger', message: 'my own report' }])
+})
+
+test('a stop takes the kept report once; final text wins but still drops it', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async (_$, on) => {
+  const io = worldIo(installWorld(on))
+  await io.state.handbacks.update(() => [{ agentId: 'a1', message: 'report one' }, { agentId: 'a2', message: 'report two' }])
+  expect(await stopAnswer(io, 'a1', undefined)).toBe('report one')
+  expect(await stopAnswer(io, 'a1', '  ')).toBeUndefined()
+  expect(await stopAnswer(io, 'a2', 'final text')).toBe('final text')
+  expect(await io.state.handbacks.read()).toEqual([])
+})
+
+test('a pipeline phase completes from the report its agent handed back', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+  const w = installWorld(on)
+  setupDemo(w)
+  await boot($)
+  await zboard($, 'run demo')
+  await stopAgent($, w, lastAgent(w), ANSWERS.research)
+  expect(w.spawns.map(spawn => spawn.subagentType)).toEqual(['zboard:researcher', 'zboard:planner'])
+})
+
+test('a pipeline phase still completes from an agent\'s final text', { timeoutMs: PLUGIN_TEST_TIMEOUT_MS }, async ($, on) => {
+  const w = installWorld(on)
+  setupDemo(w)
+  await boot($)
+  await zboard($, 'run demo')
+  await stopAgentWithText($, w, lastAgent(w), ANSWERS.research)
+  expect(w.spawns.map(spawn => spawn.subagentType)).toEqual(['zboard:researcher', 'zboard:planner'])
 })
