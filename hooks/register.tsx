@@ -12,10 +12,11 @@ import { EMPTY_PLAN_LOG, planOf } from './plan/plan-log.ts'
 import type { Ctx } from './runtime/ctx.ts'
 import type { Io } from './runtime/io.ts'
 import { captureTokens, touch } from './runtime/capture.ts'
+import { agentCell, flushPending, refreshAgents, withBoard, withPlanAgents } from './runtime/agent-cache.ts'
 import { claimLedger, completeAgent } from './runtime/complete.ts'
 import { guardWrite } from './runtime/guard.ts'
 import { noteFor } from './runtime/inject.ts'
-import { append, isolate, readBoard } from './runtime/log-store.ts'
+import { append, isolate, onAppend, readBoard } from './runtime/log-store.ts'
 import { mirrorCreated, mirrorUpdated } from './runtime/native.ts'
 import { installNotify } from './runtime/notify.ts'
 import { installOrchestrator } from './runtime/orchestrator.ts'
@@ -24,7 +25,8 @@ import { installPlanJobs } from './runtime/plan-jobs.ts'
 import { flushPlanMirror, installPlanMirror } from './runtime/plan-mirror.ts'
 import { recoverPlan } from './runtime/plan-recovery.ts'
 import { planTokens } from './runtime/plan-runner.ts'
-import { isolatePlan } from './runtime/plan-store.ts'
+import { isolatePlan, onPlanAppend } from './runtime/plan-store.ts'
+import { caughtWrite } from './runtime/reentry-guard.ts'
 import { closeChanges, focusChange, renderChanges } from './ui/ChangesPane.tsx'
 import { closeDetail, renderDetail } from './ui/Detail.tsx'
 import { focusCard, renderPane } from './ui/Pane.tsx'
@@ -117,18 +119,33 @@ function ioOf($: EngineInterface): Io {
 export const register: Register = (on, options) => {
   const ctx: Ctx = { options }
   const claim = claimLedger()
+  // What zboard knows of its agents for `.catch` handlers, where `$` rejects (runtime/agent-cache.ts).
+  const agents = agentCell()
+  onAppend(async (_io, _before, after) => agents.set(withBoard(agents.get(), after)))
+  onPlanAppend(async (_io, _before, after) => agents.set(withPlanAgents(agents.get(), after)))
 
   // Allowed-file guard (runtime/guard.ts), registered first so it sits above every other tool.call hook.
+  // A zboard-spawned agent's calls skip these hooks (re-entry); each `.catch` then decides from the
+  // agent cache (runtime/reentry-guard.ts) and fails closed.
   on('tool.call', { tool: 'Edit' }, async ($, e, next) => {
     const deny = await guardWrite(ioOf($), e.agentId, e.file_path)
+    return deny === undefined ? next(e) : { deny }
+  }).catch(async ($, e, next) => {
+    const deny = caughtWrite(agents, e.tool, e.agentId, e.file_path, next)
     return deny === undefined ? next(e) : { deny }
   })
   on('tool.call', { tool: 'Write' }, async ($, e, next) => {
     const deny = await guardWrite(ioOf($), e.agentId, e.file_path)
     return deny === undefined ? next(e) : { deny }
+  }).catch(async ($, e, next) => {
+    const deny = caughtWrite(agents, e.tool, e.agentId, e.file_path, next)
+    return deny === undefined ? next(e) : { deny }
   })
   on('tool.call', { tool: 'NotebookEdit' }, async ($, e, next) => {
     const deny = await guardWrite(ioOf($), e.agentId, e.notebook_path)
+    return deny === undefined ? next(e) : { deny }
+  }).catch(async ($, e, next) => {
+    const deny = caughtWrite(agents, e.tool, e.agentId, e.notebook_path, next)
     return deny === undefined ? next(e) : { deny }
   })
 
@@ -154,6 +171,7 @@ export const register: Register = (on, options) => {
     startPolling(io, ctx)
     await isolate(io, 'recovery.session.start', () => recover(io, ctx, true), undefined)
     await isolatePlan(io, 'plan.recovery', () => recoverPlan(io), undefined)
+    await isolate(io, 'agents.session.start', () => refreshAgents(io, agents), undefined)
     return started
   })
 
@@ -230,6 +248,7 @@ export const register: Register = (on, options) => {
   on('classic.SubagentStart', async ($, e, next) => {
     const result = await next(e)
     const io = ioOf($)
+    await isolate(io, 'agents.flush', () => flushPending(io, agents), undefined)
     await isolate(io, 'classic.SubagentStart', () => touch(io, e.agent_id), undefined)
     return result
   })
@@ -259,6 +278,7 @@ export const register: Register = (on, options) => {
   // an empty answer (the report is read from its messages). It completes a zboard agent.
   on('turn.complete', async ($, e, next) => {
     const io = ioOf($)
+    await isolate(io, 'agents.flush', () => flushPending(io, agents), undefined)
     await isolate(io, 'capture.turn.complete', () => captureTokens(io, e.agentId, e.usage), undefined)
     await isolatePlan(io, 'plan.turn.complete', () => planTokens(io, e.agentId, e.usage), undefined)
     const result = await next(e)
