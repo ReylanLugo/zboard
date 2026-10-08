@@ -155,3 +155,7 @@ Claude Code's module checker shapes the layout:
 So `register.tsx` is the composition root. It holds the atoms, every hook, and one `ioOf($)` that builds the
 `Io` ports (`hooks/runtime/io.ts`). Every other module receives that `Io` and stays testable without the engine.
 Tests answer the ports from an in-memory world (`hooks/testing/world.ts`).
+
+## License
+
+[MIT](LICENSE) © 2026 ReylanLugo

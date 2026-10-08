@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Kanban board and deterministic per-task pipeline for OpenSpec changes inside Claude Code.",
   "types": "./types/index.d.ts",
+  "license": "MIT",
   "userConfig": {
     "researcherModel": { "type": "string", "title": "Researcher model", "description": "Model for zboard:researcher", "default": "sonnet 5.5", "options": ["opus 5.5", "sonnet 5.5", "haiku 4.5"] },
     "researcherEffort": { "type": "string", "title": "Researcher effort", "description": "Effort for zboard:researcher", "default": "medium", "options": ["low", "medium", "high", "xhigh", "max"] },
