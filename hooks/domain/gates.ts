@@ -113,7 +113,11 @@ export function tddGate(run: TestRun, answer: string): GateOutcome {
   const short = newTests.find(name => name.trim().length < MIN_TEST_NAME)
   if (short !== undefined) return fail(`tdd: newTests has an empty or too short name: ${JSON.stringify(short)}`)
   if (run.failures.length === 0) return fail(`tdd: ${runnerLabel(run)} failed but no failing test could be identified`)
-  const foreign = run.failures.filter(failure => !newTests.some(name => namesTest(failure, name.trim())))
+  // A declared test file that cannot load yet (its module is missing) fails as a whole, under the file's name.
+  const declaredFiles = isRecord(json) ? (stringArray(json.testFiles) ?? []) : []
+  const isOwnFile = (failure: string): boolean =>
+    declaredFiles.some(file => failure === file || failure.endsWith(`/${file}`) || file.endsWith(`/${failure}`))
+  const foreign = run.failures.filter(failure => !isOwnFile(failure) && !newTests.some(name => namesTest(failure, name.trim())))
   if (foreign.length > 0) return fail(`tdd: pre-existing tests fail: ${foreign.join(', ')}`)
   return { gate: 'pass', summary: `RED: ${run.failures.length} new failing test(s)`, newTests }
 }

@@ -20,6 +20,12 @@ test('tdd gate fails when a pre-existing test fails', () => {
   expect(outcome).toEqual({ gate: 'fail', reason: 'tdd: pre-existing tests fail: tests/test_parse.py::test_old', terminal: false })
 })
 
+test('tdd gate accepts a declared test file that fails to load (node:test reports the file as the failure)', () => {
+  const answer = '```json\n{"testFiles":["greet.test.mjs"],"newTests":["greet formats World"]}\n```'
+  expect(tddGate(run('fail', ['greet.test.mjs']), answer)).toMatchObject({ gate: 'pass', newTests: ['greet formats World'] })
+  expect(tddGate(run('fail', ['other.test.mjs']), answer)).toEqual({ gate: 'fail', reason: 'tdd: pre-existing tests fail: other.test.mjs', terminal: false })
+})
+
 test('tdd gate treats an unidentifiable failure as ambiguous', () => {
   expect(tddGate(run('fail', []), tddAnswer)).toMatchObject({ gate: 'fail', reason: 'tdd: ptest failed but no failing test could be identified' })
   expect(tddGate(run('fail', ['x']), 'no json')).toMatchObject({ reason: 'tdd: artifact lists no newTests' })
