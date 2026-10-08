@@ -24,6 +24,13 @@ test('system prompts defer to the test command named in the task prompt', () => 
   }
 })
 
+test('system prompts forbid cloud and infrastructure CLIs', () => {
+  for (const prompt of Object.values(SYSTEM_PROMPTS)) {
+    expect(prompt).toContain('Never run cloud or infrastructure CLIs (gcloud, gsutil, bq, terraform')
+    expect(prompt).toContain('work only on local files and the local test command')
+  }
+})
+
 test('commandDisplay shows the argv with <file> or the given file, quoting elements with spaces', () => {
   expect(commandDisplay(PTEST_RUNNER)).toBe('ptest <file>')
   expect(commandDisplay({ kind: 'custom', argv: ['uv', 'run', 'pytest', '{file}', '-q'], timeoutMs: 1_000 })).toBe('uv run pytest <file> -q')

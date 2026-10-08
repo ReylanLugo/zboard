@@ -121,6 +121,11 @@ the drafter writes `tasks.md` with sonnet 5.5/medium).
 - Test files run one at a time from the repository root through the test command (see [Test command](#test-command)).
   A test file must be a plain repository-relative path (not absolute, no `..`, not starting with `-`) or it is
   never run. A run that cannot finish never counts as a pass.
+- Guards: an agent's Edit/Write is limited to the task's allowed files (read-only phases write nothing), and its
+  Bash may not run cloud or infrastructure CLIs (`gcloud`, `terraform`, `kubectl`, `aws`, `helm`, ... see
+  `hooks/domain/infra.ts`). The CLI is matched as a command word, including after `sudo`, `env`, `xargs`,
+  `bash -c` and `$(...)`, so `rg gcloud src/` still runs. Only zboard's agents are gated; your own session's
+  Bash is untouched. Other shell side effects stay unguarded, and the agents' prompts forbid infrastructure work.
 - When the whole change is done, run your project's full test suite (with ptest: `ptest --full`) before handing off.
 
 ## Configuration

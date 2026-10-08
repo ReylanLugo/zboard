@@ -17,6 +17,7 @@ import { captureTokens, touch } from './runtime/capture.ts'
 import { agentCell, flushPending, refreshAgents, withBoard, withPlanAgents } from './runtime/agent-cache.ts'
 import { claimLedger, completeAgent } from './runtime/complete.ts'
 import { guardWrite } from './runtime/guard.ts'
+import { caughtBash, guardBash } from './runtime/infra-guard.ts'
 import { noteFor } from './runtime/inject.ts'
 import { append, isolate, onAppend, readBoard } from './runtime/log-store.ts'
 import { mirrorCreated, mirrorUpdated } from './runtime/native.ts'
@@ -165,6 +166,15 @@ export const register: Register = (on, options) => {
     return deny === undefined ? next(e) : { deny }
   })).catch(async ($, e, next) => {
     const deny = caughtWrite(agents, e.tool, e.agentId, e.notebook_path, next)
+    return deny === undefined ? next(e) : { deny }
+  })
+  // Infrastructure guard (runtime/infra-guard.ts): a zboard agent's Bash may not run cloud or
+  // infrastructure CLIs. Same frame and `.catch` rules as the write guard; the main session passes.
+  on('tool.call', { tool: 'Bash' }, ($, e, next) => framed($, 'tool.call', async io => {
+    const deny = await guardBash(io, e.agentId, e.command)
+    return deny === undefined ? next(e) : { deny }
+  })).catch(async ($, e, next) => {
+    const deny = caughtBash(e.tool, e.agentId, e.command, next)
     return deny === undefined ? next(e) : { deny }
   })
 
